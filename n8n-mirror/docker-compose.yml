@@ -1,0 +1,26 @@
+version: "3.8"
+
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: vozdocliente-n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=admin
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=http://localhost:5678/
+      - GENERIC_TIMEZONE=America/Sao_Paulo
+      # As credenciais reais (OpenAI, Airtable, Slack) sao criadas pela UI do n8n.
+      # AIRTABLE_BASE_ID é lido pelo node "Airtable Create" via {{$env.AIRTABLE_BASE_ID}}.
+      - AIRTABLE_BASE_ID=${AIRTABLE_BASE_ID}
+    volumes:
+      - n8n_data:/home/node/.n8n
+
+volumes:
+  n8n_data:

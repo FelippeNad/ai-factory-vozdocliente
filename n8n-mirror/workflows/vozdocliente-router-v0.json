@@ -1,0 +1,242 @@
+{
+  "name": "VozDoCliente - Review Router v0 (n8n mirror)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "review",
+        "responseMode": "onReceived",
+        "responseData": "allEntries",
+        "options": {
+          "rawBody": false
+        }
+      },
+      "id": "a1b2c3d4-0001-4aaa-aaaa-000000000001",
+      "name": "Webhook Review",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 320],
+      "webhookId": "vozdocliente-review-router"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-5.4-mini\",\n  \"temperature\": 0.1,\n  \"max_tokens\": 200,\n  \"response_format\": { \"type\": \"json_object\" },\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"Você é um classificador de avaliações de clientes da VozDoCliente (SaaS de CX para varejo e marketplaces). Leia o texto da avaliação e responda APENAS com um JSON válido, sem texto extra, no formato: {\\\"sentiment\\\": \\\"<positivo|neutro|negativo>\\\", \\\"theme\\\": \\\"<entrega|produto|atendimento|preco|app_bug>\\\"}. Definições de sentiment: positivo (elogio/satisfeito), neutro (dúvida/sugestão sem carga), negativo (reclamação/frustração). Definições de theme: entrega (prazo/frete/extravio), produto (qualidade/defeito), atendimento (SAC/troca/reembolso), preco (valor/cobrança/cupom), app_bug (erro no app/site/checkout).\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": {{ JSON.stringify($json.body.review_text) }}\n    }\n  ]\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "b2c3d4e5-0002-4bbb-bbbb-000000000002",
+      "name": "OpenAI Classificar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [480, 320],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "1",
+          "name": "OpenAI Sther (pessoal - ROTACIONAR)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Faz o parse do JSON que o LLM devolveu e junta com o payload original do webhook.\n// DEBITO: sem try/catch. Se o modelo devolver texto fora do formato JSON, o node quebra\n// e o fluxo morre silencioso (igual estava no Make da Sther).\nconst llmRaw = $json.choices[0].message.content;\nconst parsed = JSON.parse(llmRaw);\nconst webhook = $('Webhook Review').first().json.body;\nreturn [\n  {\n    json: {\n      review_id: webhook.review_id,\n      customer_name: webhook.customer_name,\n      source: webhook.source,\n      rating: webhook.rating,\n      review_text: webhook.review_text,\n      sentiment: (parsed.sentiment || '').toLowerCase().trim(),\n      theme: (parsed.theme || '').toLowerCase().trim(),\n      processed_at: new Date().toISOString()\n    }\n  }\n];"
+      },
+      "id": "c3d4e5f6-0003-4ccc-cccc-000000000003",
+      "name": "Parse + Merge",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 320]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.airtable.com/v0/{{$env.AIRTABLE_BASE_ID}}/Reviews",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"fields\": {\n    \"review_id\": {{ JSON.stringify($json.review_id) }},\n    \"customer_name\": {{ JSON.stringify($json.customer_name) }},\n    \"source\": {{ JSON.stringify($json.source) }},\n    \"rating\": {{ $json.rating }},\n    \"review_text\": {{ JSON.stringify($json.review_text) }},\n    \"sentiment\": {{ JSON.stringify($json.sentiment) }},\n    \"theme\": {{ JSON.stringify($json.theme) }},\n    \"processed_at\": {{ JSON.stringify($json.processed_at) }}\n  }\n}",
+        "options": {}
+      },
+      "id": "d4e5f6a7-0004-4ddd-dddd-000000000004",
+      "name": "Airtable Create",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [960, 320],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2",
+          "name": "Airtable PAT Sther (base corporativa)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-negativo",
+              "leftValue": "={{ $('Parse + Merge').item.json.sentiment }}",
+              "rightValue": "negativo",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "e5f6a7b8-0005-4eee-eeee-000000000005",
+      "name": "É negativo?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1200, 320]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/chat.postMessage",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"channel\": \"#cx-alertas\",\n  \"text\": {{ JSON.stringify(\":rotating_light: *Avaliação NEGATIVA — tema: \" + $('Parse + Merge').item.json.theme + \"*\\nCliente: \" + $('Parse + Merge').item.json.customer_name + \" (origem: \" + $('Parse + Merge').item.json.source + \", nota: \" + $('Parse + Merge').item.json.rating + \")\\n>>> \" + $('Parse + Merge').item.json.review_text + \"\\n\\nTime responsável, responder em até 24h. Nenhuma reclamação sem resposta.\") }}\n}",
+        "options": {}
+      },
+      "id": "f6a7b8c9-0006-4fff-ffff-000000000006",
+      "name": "Slack Alerta CX",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1460, 220],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "3",
+          "name": "Slack VozDoCliente Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Review": {
+      "main": [
+        [
+          {
+            "node": "OpenAI Classificar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Classificar": {
+      "main": [
+        [
+          {
+            "node": "Parse + Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse + Merge": {
+      "main": [
+        [
+          {
+            "node": "Airtable Create",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Airtable Create": {
+      "main": [
+        [
+          {
+            "node": "É negativo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "É negativo?": {
+      "main": [
+        [
+          {
+            "node": "Slack Alerta CX",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "v0.2.0",
+  "id": "vozdocliente-review-router",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "owner": "sther.ramos@vozdocliente.com.br",
+    "lastUpdated": "2026-02-19T22:14:03.000Z",
+    "notes": "v0 mirror do cenario Make. TODO: trocar API key OpenAI (pessoal da Sther), dedupe por review_id, error handling no Parse + Merge."
+  },
+  "tags": [
+    {
+      "name": "prototipo",
+      "id": "1"
+    },
+    {
+      "name": "cx",
+      "id": "2"
+    }
+  ]
+}

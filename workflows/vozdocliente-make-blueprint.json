@@ -1,0 +1,217 @@
+{
+  "name": "VozDoCliente - Review Router v0.2",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": {
+        "hook": 184523,
+        "maxResults": 1
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0
+        },
+        "restore": {
+          "parameters": {
+            "hook": {
+              "data": {
+                "editable": "true"
+              },
+              "label": "review-inbound (Sther pessoal)"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "hook",
+            "type": "hook",
+            "label": "Webhook",
+            "required": true
+          }
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "module": "openai-gpt-3:CreateModerationCompletion",
+      "version": 1,
+      "parameters": {
+        "__IMTCONN__": 921734
+      },
+      "mapper": {
+        "model": "gpt-5.4-mini",
+        "temperature": "0.1",
+        "max_tokens": "200",
+        "response_format": "json_object",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Você é um classificador de avaliações de clientes da VozDoCliente (SaaS de CX para varejo e marketplaces). Leia o texto da avaliação e responda APENAS com um JSON válido, sem texto extra, no formato:\n{\"sentiment\": \"<positivo|neutro|negativo>\", \"theme\": \"<entrega|produto|atendimento|preco|app_bug>\"}\n\nDefinições de sentiment:\n- positivo: cliente satisfeito, elogio.\n- neutro: dúvida, sugestão ou comentário sem carga emocional clara.\n- negativo: cliente insatisfeito, reclamação, frustração.\n\nDefinições de theme:\n- entrega: prazo, frete, extravio, avaria no transporte.\n- produto: qualidade, defeito, tamanho, descrição divergente.\n- atendimento: SAC, troca, reembolso, postura do atendente.\n- preco: valor caro, cobrança, cupom, promoção.\n- app_bug: erro no app/site, login, checkout travado, lentidão."
+          },
+          {
+            "role": "user",
+            "content": "{{1.review_text}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0
+        },
+        "restore": {
+          "parameters": {
+            "__IMTCONN__": {
+              "data": {
+                "scoped": "true",
+                "connection": "openai-gpt-3"
+              },
+              "label": "OpenAI Sther (pessoal - ROTACIONAR)"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": 3,
+      "module": "json:ParseJSON",
+      "version": 1,
+      "parameters": {
+        "type": ""
+      },
+      "mapper": {
+        "json": "{{2.result}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0
+        }
+      }
+    },
+    {
+      "id": 4,
+      "module": "airtable3:ActionCreateRecord",
+      "version": 3,
+      "parameters": {
+        "__IMTCONN__": 921801
+      },
+      "mapper": {
+        "base": "appXXXXXXXXXXXXXX",
+        "table": "tblReviews",
+        "record": {
+          "review_id": "{{1.review_id}}",
+          "customer_name": "{{1.customer_name}}",
+          "source": "{{1.source}}",
+          "rating": "{{1.rating}}",
+          "review_text": "{{1.review_text}}",
+          "sentiment": "{{3.sentiment}}",
+          "theme": "{{3.theme}}",
+          "processed_at": "{{now}}"
+        }
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0
+        },
+        "restore": {
+          "parameters": {
+            "__IMTCONN__": {
+              "data": {
+                "scoped": "true",
+                "connection": "airtable3"
+              },
+              "label": "Airtable PAT Sther (base corporativa)"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": 5,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "mapper": null,
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0
+        }
+      },
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 6,
+              "module": "slack:CreateMessage",
+              "version": 4,
+              "parameters": {
+                "__IMTCONN__": 921842
+              },
+              "filter": {
+                "name": "Somente negativos",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{3.sentiment}}",
+                      "o": "text:equal",
+                      "b": "negativo"
+                    }
+                  ]
+                ]
+              },
+              "mapper": {
+                "channel": "#cx-alertas",
+                "text": ":rotating_light: *Avaliação NEGATIVA — tema: {{3.theme}}*\nCliente: {{1.customer_name}} (origem: {{1.source}}, nota: {{1.rating}})\n>>> {{1.review_text}}\n\nTime responsável, favor responder em até 24h. Nenhuma reclamação sem resposta.",
+                "blocks": null
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1500,
+                  "y": 0
+                },
+                "restore": {
+                  "parameters": {
+                    "__IMTCONN__": {
+                      "data": {
+                        "scoped": "true",
+                        "connection": "slack"
+                      },
+                      "label": "Slack VozDoCliente Bot"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "autoCommitTriggerLast": true,
+      "sequential": false,
+      "slots": null,
+      "confidential": false,
+      "dataloss": false,
+      "dlq": false,
+      "freshVariables": false
+    },
+    "designer": {
+      "orphans": []
+    },
+    "zone": "eu1.make.com",
+    "notes": "v0.2 - Sther. Pendente: trocar API key OpenAI (minha pessoal), conexoes nao exportam no blueprint, sem dedupe de review_id."
+  }
+}
