@@ -23,7 +23,7 @@ Oi, sou eu. Anotando do jeito que tá na minha cabeça antes de eu esquecer. Nã
 - **Rastreio de custo por review.** Não gravo tokens nem custo. Queria um campo `cost_usd` no Airtable e um total mensal. Sem isso a gente não sabe quanto custa por loja.
 - **Mapa LGPD.** As reviews vêm com **nome do cliente** e às vezes a pessoa escreve telefone ou número de pedido no texto livre — e isso vai inteiro pro OpenAI (EUA) e pro Airtable. Levantei a bandeira pro jurídico, não responderam. Precisa: base legal, anonimização do texto antes do prompt, e política de retenção.
 - **Dashboard.** Volume por tema, % de negativos, tempo até resposta. Nem comecei.
-- **Trocar o admin/admin do n8n.** Óbvio, mas fica aqui registrado.
+- **Hardening do n8n pra produção (TLS, exposição, credenciais).** O mirror local já usa conta de dono e porta só no loopback; produção precisa do resto.
 
 ## Sobre o LLM
 

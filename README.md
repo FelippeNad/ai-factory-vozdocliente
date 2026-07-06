@@ -59,7 +59,7 @@ Passo a passo completo em `n8n-mirror/README.md`. Resumo:
 ```bash
 cd n8n-mirror
 docker compose up
-# abre http://localhost:5678  (admin/admin)
+# abre http://localhost:5678  (1º acesso: cria uma conta de dono — email/senha local)
 # Import from File → workflows/vozdocliente-router-v0.json
 # recria as 3 credenciais Header Auth, clica Active
 ```

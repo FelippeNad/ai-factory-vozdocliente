@@ -1,22 +1,24 @@
-version: "3.8"
-
+# Mirror local n8n do VozDoCliente Review Router (para testar o fluxo sem o Make/produção).
+# Versão FIXADA de propósito — não troque por :latest (a tag muda sozinha e já quebrou o login).
+# n8n v1/v2 REMOVEU o basic auth (admin/admin): no 1º acesso o n8n pede para criar uma
+# CONTA DE DONO (owner) — email + senha locais, só na sua máquina.
+# A porta é publicada só no loopback (127.0.0.1) para NÃO expor o editor na rede.
 services:
   n8n:
-    image: n8nio/n8n:latest
+    image: n8nio/n8n:2.28.7
     container_name: vozdocliente-n8n
     restart: unless-stopped
     ports:
-      - "5678:5678"
+      - "127.0.0.1:5678:5678"
     environment:
-      - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=admin
-      - N8N_BASIC_AUTH_PASSWORD=admin
       - N8N_HOST=localhost
       - N8N_PORT=5678
       - N8N_PROTOCOL=http
       - WEBHOOK_URL=http://localhost:5678/
       - GENERIC_TIMEZONE=America/Sao_Paulo
-      # As credenciais reais (OpenAI, Airtable, Slack) sao criadas pela UI do n8n.
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_PERSONALIZATION_ENABLED=false
+      # As credenciais reais (OpenAI, Airtable, Slack) são criadas pela UI do n8n.
       # AIRTABLE_BASE_ID é lido pelo node "Airtable Create" via {{$env.AIRTABLE_BASE_ID}}.
       - AIRTABLE_BASE_ID=${AIRTABLE_BASE_ID}
     volumes:
