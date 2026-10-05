@@ -18,6 +18,7 @@ services:
       - GENERIC_TIMEZONE=America/Sao_Paulo
       - N8N_DIAGNOSTICS_ENABLED=false
       - N8N_PERSONALIZATION_ENABLED=false
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
       # As credenciais reais (OpenAI, Airtable, Slack) são criadas pela UI do n8n.
       # AIRTABLE_BASE_ID é lido pelo node "Airtable Create" via {{$env.AIRTABLE_BASE_ID}}.
       - AIRTABLE_BASE_ID=${AIRTABLE_BASE_ID}
