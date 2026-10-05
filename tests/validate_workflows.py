@@ -15,7 +15,7 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MAKE_PATH = os.path.join(ROOT, "workflows", "vozdocliente-make-blueprint.json")
-N8N_PATH = os.path.join(ROOT, "n8n-mirror", "workflows", "vozdocliente-router-v0.json")
+N8N_PATH = os.path.join(ROOT, "n8n-mirror", "workflows", "vozdocliente-router-v2.json")
 
 failures = []
 
