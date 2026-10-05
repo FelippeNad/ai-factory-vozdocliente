@@ -1,106 +1,333 @@
-# VozDoCliente — Review Router (passagem de bastão da Sther)
+# VozDoCliente — AI Review Router
 
-Oi! Eu sou a **Sther** 👋 (estagiária de CX Ops por cerca de seis meses, até o início deste ano).
+Sistema de triagem automática de avaliações de clientes utilizando IA para classificação de sentimento e tema, persistência estruturada e roteamento de alertas para o time de CX.
 
-Esse é o roteador de avaliações que eu montei. Quando chega uma review/feedback novo (da loja de apps ou do formulário), o fluxo usa um LLM pra classificar **sentimento** (positivo / neutro / negativo) e **tema** (entrega, produto, atendimento, preço, app/bug), grava no Airtable e, **se for negativa**, dispara um alerta no Slack pro time responsável. A ideia é a missão da casa: **"Nenhuma reclamação sem resposta."**
+Este projeto é uma evolução de um protótipo herdado originalmente implementado em Make.com. A solução foi revisada e evoluída para uma arquitetura baseada em n8n, com separação entre desenvolvimento e produção, workflow versionado, testes automatizados, deploy público e CI/CD.
 
-Tá rodando em **Make.com** desde o fim do ano passado. Como Make não roda local (e você não vai conseguir testar de imediato), eu **espelhei o fluxo no n8n** (em `n8n-mirror/`) pra você conseguir subir num Docker e ver funcionando de verdade.
+## Objetivo
 
-## O que tem aqui
+Automatizar o processamento de avaliações recebidas de diferentes canais.
 
+Cada avaliação é:
+
+1. recebida por webhook;
+2. classificada por um LLM;
+3. validada e normalizada;
+4. verificada contra registros existentes;
+5. persistida no Airtable;
+6. encaminhada ao Slack quando possui sentimento negativo.
+
+O princípio funcional do sistema é:
+
+> Nenhuma reclamação sem resposta.
+
+## Fluxo principal
+
+```text
+Review
+  ↓
+Webhook n8n
+  ↓
+LLM
+  ↓
+Parse + validação
+  ↓
+Busca por review_id
+  ↓
+Deduplicação
+  ↓
+Airtable
+  ↓
+Sentimento negativo?
+  ├── Não → fim
+  └── Sim → Slack
 ```
-vozdocliente-review-router/
-├── README.md                         ← você está aqui
-├── BRIEFING.md                       ← carta de onboarding da Letícia (sua gestora)
-├── CHANGELOG.md
-├── .env.example
-├── .gitignore
-├── workflows/
-│   └── vozdocliente-make-blueprint.json   ← blueprint Make.com (importável)
-├── n8n-mirror/                       ← espelho rodável (Docker + n8n)
-│   ├── docker-compose.yml
-│   ├── README.md
-│   └── workflows/vozdocliente-router-v0.json
+
+A classificação utiliza:
+
+### Sentimento
+
+- `positivo`
+- `neutro`
+- `negativo`
+
+### Tema
+
+- `entrega`
+- `produto`
+- `atendimento`
+- `preco`
+- `app_bug`
+
+## Ambientes
+
+### Desenvolvimento
+
+O ambiente de desenvolvimento utiliza:
+
+- n8n em Docker;
+- LM Studio;
+- Qwen3-4B;
+- Airtable DEV;
+- Slack DEV;
+- credenciais específicas de desenvolvimento.
+
+Esse ambiente permite desenvolver e testar o workflow sem depender da infraestrutura de produção e sem necessidade de utilizar uma API externa de LLM.
+
+### Produção
+
+O ambiente de produção utiliza:
+
+- n8n hospedado no Railway;
+- OpenAI API;
+- modelo `gpt-5.6-luna`;
+- Airtable PROD;
+- Slack PROD;
+- PostgreSQL para persistência interna do n8n;
+- variáveis e secrets configurados no ambiente de produção.
+
+URL pública do n8n:
+
+```text
+https://n8n-production-7813.up.railway.app
+```
+
+Endpoint de produção:
+
+```text
+POST https://n8n-production-7813.up.railway.app/webhook/review
+```
+
+## Exemplo de requisição
+
+```json
+{
+  "review_id": "R-1001",
+  "customer_name": "Cliente Exemplo",
+  "source": "app-store",
+  "rating": 1,
+  "review_text": "Produto chegou quebrado e o atendimento nao respondeu."
+}
+```
+
+Exemplo com PowerShell:
+
+```powershell
+curl -Method POST https://n8n-production-7813.up.railway.app/webhook/review `
+  -ContentType "application/json" `
+  -Body '{"review_id":"R-1001","customer_name":"Cliente Exemplo","source":"app-store","rating":1,"review_text":"Produto chegou quebrado e o atendimento nao respondeu."}'
+```
+
+## Deduplicação
+
+Antes da criação de um registro, o workflow consulta o Airtable utilizando `review_id`.
+
+Caso o identificador já exista:
+
+```text
+review_id encontrado
+       ↓
+deduplicação = TRUE
+       ↓
+fluxo encerrado
+```
+
+Isso evita:
+
+- registros duplicados;
+- classificações repetidas;
+- alertas duplicados no Slack.
+
+## Validação da saída do LLM
+
+A saída do modelo é processada pelo node `Parse + Merge`.
+
+O fluxo:
+
+- verifica se existe resposta do LLM;
+- realiza o parse do JSON;
+- normaliza os valores;
+- valida `sentiment`;
+- valida `theme`;
+- interrompe a execução em caso de resposta inválida.
+
+Em produção, a chamada à OpenAI utiliza JSON Schema com valores permitidos para sentimento e tema.
+
+## Workflow versionado
+
+As versões exportadas do workflow n8n estão em:
+
+```text
+n8n-mirror/workflows/
+```
+
+Versão atual:
+
+```text
+vozdocliente-router-v3.json
+```
+
+As credenciais não são armazenadas diretamente no JSON exportado. Cada ambiente mantém suas próprias credenciais.
+
+O identificador da base Airtable é obtido por variável de ambiente:
+
+```text
+AIRTABLE_BASE_ID
+```
+
+## Testes
+
+Os testes automatizados podem ser executados sem acessar APIs externas:
+
+```bash
+python tests/validate_workflows.py
+python tests/test_routing_logic.py
+```
+
+`validate_workflows.py` verifica a estrutura dos workflows e suas conexões.
+
+`test_routing_logic.py` utiliza um LLM mockado para validar classificação e lógica de roteamento.
+
+## Smoke tests de produção
+
+Foram executados três smoke tests no endpoint público de produção:
+
+| Cenário | Resultado |
+| --- | --- |
+| Review negativa | Airtable + alerta Slack |
+| Review positiva | Airtable, sem alerta Slack |
+| Review duplicada | bloqueada pela deduplicação |
+
+Resultado:
+
+```text
+3/3 testes aprovados
+```
+
+A documentação completa está em:
+
+```text
+docs/smoke-tests.md
+```
+
+As evidências estão armazenadas em:
+
+```text
+docs/evidencias/
+```
+
+## CI/CD
+
+O repositório possui GitHub Actions configurado em:
+
+```text
+.github/workflows/ci.yml
+```
+
+Em alterações enviadas para a branch `main`, o pipeline executa:
+
+```text
+Push main
+   ↓
+GitHub Actions
+   ↓
+Validação estrutural do workflow
+   ↓
+Testes de roteamento
+   ↓
+Railway detecta o novo commit
+   ↓
+Build da imagem
+   ↓
+Deploy automático
+```
+
+A imagem de produção utiliza uma versão fixa do n8n através do `Dockerfile`:
+
+```dockerfile
+FROM n8nio/n8n:2.41.7
+```
+
+Isso evita alterações inesperadas causadas pelo uso de uma tag `latest`.
+
+## Estrutura principal
+
+```text
+ai-factory-vozdocliente/
+├── .github/
+│   └── workflows/
+│       └── ci.yml
 ├── docs/
-│   ├── notas-sther.md                ← minhas notas soltas (LEIA)
-│   ├── exemplos-reviews.md           ← 10 avaliações de exemplo
-│   └── airtable-schema.md
-└── tests/
-    ├── validate_workflows.py         ← valida os 2 JSONs
-    └── test_routing_logic.py         ← teste de lógica com LLM mockado
+│   ├── adr/
+│   ├── architecture/
+│   ├── evidencias/
+│   ├── auditoria-prototipo.md
+│   ├── matriz-decisao-stack.md
+│   └── smoke-tests.md
+├── n8n-mirror/
+│   ├── docker-compose.yml
+│   └── workflows/
+│       ├── vozdocliente-router-v0.json
+│       ├── vozdocliente-router-v1.json
+│       ├── vozdocliente-router-v2.json
+│       └── vozdocliente-router-v3.json
+├── tests/
+│   ├── validate_workflows.py
+│   └── test_routing_logic.py
+├── workflows/
+│   └── vozdocliente-make-blueprint.json
+├── Dockerfile
+├── .env.example
+├── CHANGELOG.md
+└── README.md
 ```
 
-## Pipeline
+## Arquitetura e decisões
 
-```
-Webhook (review novo)
-   → OpenAI: classifica sentiment + theme (JSON)
-   → grava no Airtable (sempre)
-   → se sentiment == "negativo": Slack #cx-alertas
-```
+A evolução arquitetural está documentada em:
 
-## Rodar — Make.com
-
-O Make não roda local. Pra ver o cenário:
-
-1. Entre no Make.com → **Create a new scenario** → menu `...` → **Import Blueprint**.
-2. Suba `workflows/vozdocliente-make-blueprint.json`.
-3. O Make importa os módulos, mas **as Connections não vêm no blueprint** (limitação do Make — aprendi do jeito difícil). Você vai reconfigurar na mão:
-   - OpenAI (API key)
-   - Airtable (PAT + base/tabela)
-   - Slack (OAuth do bot)
-4. No módulo Webhook, copie a URL gerada e plugue na origem (form de feedback / integração da app store).
-5. Ligue o scheduler (hoje tá **manual**, ver dívida técnica).
-
-## Rodar — espelho n8n (recomendado pra testar)
-
-Passo a passo completo em `n8n-mirror/README.md`. Resumo:
-
-```bash
-cd n8n-mirror
-docker compose up
-# abre http://localhost:5678  (1º acesso: cria uma conta de dono — email/senha local)
-# Import from File → workflows/vozdocliente-router-v0.json
-# recria as 3 credenciais Header Auth, clica Active
+```text
+docs/auditoria-prototipo.md
+docs/matriz-decisao-stack.md
+docs/architecture/c4-context.md
+docs/architecture/c4-container.md
+docs/adr/ADR-001-stack.md
+docs/adr/ADR-002-deploy-e-ambientes.md
 ```
 
-E testa com:
+## Segurança
 
-```bash
-curl -X POST http://localhost:5678/webhook/review \
-  -H "Content-Type: application/json" \
-  -d '{"review_id":"R-1001","customer_name":"Marina Souza","source":"app-store","rating":1,"review_text":"Produto chegou quebrado e o SAC nao responde."}'
+Secrets e credenciais não devem ser armazenados no repositório.
+
+Arquivos `.env` são ignorados pelo Git e o projeto mantém apenas `.env.example`.
+
+Credenciais de desenvolvimento e produção são mantidas separadamente.
+
+Exemplos de informações que não devem ser commitadas:
+
+```text
+OpenAI API keys
+Airtable Personal Access Tokens
+Slack Bot Tokens
+N8N_ENCRYPTION_KEY
 ```
 
-## Testes (rodam sem Docker)
+## Histórico
 
-```bash
-python tests/validate_workflows.py     # valida estrutura dos 2 JSONs
-python tests/test_routing_logic.py     # lógica de sentiment/theme + alerta, LLM mockado
-```
+O projeto partiu de um protótipo herdado baseado em Make.com.
 
-> Os testes **não** chamam API real e **não** sobem o n8n. Mockam o LLM.
+A evolução preservou a finalidade original do sistema, mas adicionou:
 
-## LLM
+- n8n como orquestrador principal;
+- ambiente de desenvolvimento local;
+- ambiente público de produção;
+- separação DEV/PROD;
+- validação defensiva da resposta do LLM;
+- deduplicação;
+- versionamento do workflow;
+- testes automatizados;
+- CI/CD;
+- deploy no Railway;
+- documentação arquitetural.
 
-Hoje uso um modelo **GPT** pequeno da **OpenAI** (barato, rápido o bastante pra classificação). Dá pra trocar por **Anthropic Claude** (ex.: um modelo Haiku) sem mudar o fluxo — só o módulo/endpoint e o parsing da resposta. O prompt já pede JSON, então a migração é tranquila. (Confere preço/modelo atual antes de decidir.)
-
----
-
-## Dívida técnica herdada
-
-Tô deixando isso documentado de propósito — **não joguei fora, mas também não consegui arrumar**. É o que você herda:
-
-1. **Scheduler/conexão na minha conta pessoal.** O cenário Make tá no meu espaço pessoal e o scheduler tá rodando **manual** porque a Letícia desligou o automático pra não estourar minha quota quando eu saí. Precisa migrar pra conta corporativa VozDoCliente.
-2. **API key da OpenAI é minha pessoal.** Tá saindo do meu cartão (uns US$ 12/mês). Vou **revogar** quando minha conta de aluno expirar. Gera uma chave corporativa e troca — tá hardcoded como credencial nomeada nos dois workflows.
-3. **Sem error handling.** Se o LLM devolve algo que não é JSON, o node `Parse + Merge` (n8n) / o `JSON Parse` (Make) **quebra e o fluxo morre silencioso**. Já perdi reviews assim e ninguém viu.
-4. **Sem deduplicação.** Se a app store reenvia o mesmo review (ou o form dá duplo-submit), processa **duas vezes** e grava linha duplicada no Airtable. Não tem checagem por `review_id`.
-5. **Sem rastreio de custo.** Não gravo tokens nem custo por execução. Impossível auditar o gasto de LLM por review hoje.
-6. **Sem mapa LGPD.** As reviews **vêm com nome do cliente** (campo `customer_name`) e às vezes a pessoa escreve telefone/pedido no texto livre — e isso vai inteiro pro prompt do OpenAI (EUA) e pro Airtable. Ninguém mapeou base legal / anonimização / retenção.
-7. **Matching de tema frágil.** A rota do negativo e os relatórios dependem da string exata do LLM (`negativo`, `entrega`, `app_bug`...). Se o modelo responder com acento diferente, maiúscula, ou um tema fora da lista, **fura silenciosamente**. No n8n eu faço `.toLowerCase().trim()` como gambiarra, mas não valido contra a lista permitida.
-
-Detalhes e mais contexto em `docs/notas-sther.md`.
-
-Boa sorte! O fluxo é simples e o time de CX já depende dele. Qualquer coisa me chama. 💛
-
-— Sther
+O blueprint original do Make.com foi mantido em `workflows/` para preservar o histórico e permitir rastreabilidade da evolução.
