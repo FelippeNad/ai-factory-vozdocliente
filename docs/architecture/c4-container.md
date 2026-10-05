@@ -6,37 +6,24 @@ Detalhar os principais componentes técnicos do VozDoCliente e as relações ent
 
 ```mermaid
 C4Container
-title VozDoCliente — Diagrama de Contêineres
+title VozDoCliente — C4 Nível 2: Containers
 
-Person(cx, "Equipe de CX", "Consulta resultados e recebe alertas")
+Person(cx, "Equipe de CX", "Consulta avaliações e recebe alertas")
 
-System_Boundary(sistema, "VozDoCliente") {
+System_Ext(source, "Canal de avaliações", "Envia avaliações de clientes")
+System_Ext(llm, "Serviço de LLM", "Classifica sentimento e tema")
+System_Ext(airtable, "Airtable", "Armazena avaliações processadas")
+System_Ext(slack, "Slack", "Recebe alertas de avaliações negativas")
 
-    Container(webhook, "Webhook", "n8n", "Recebe avaliações em formato JSON")
-
-    Container(orchestrator, "Workflow de processamento", "n8n", "Orquestra classificação, validação, persistência e roteamento")
-
-    Container(llmAdapter, "Integração com LLM", "HTTP Request / API compatível com OpenAI", "Envia o texto da avaliação para classificação")
-
-    Container(parser, "Parse e validação", "n8n Code Node", "Interpreta e normaliza a resposta do modelo")
-
-    Container(router, "Roteamento", "n8n IF Node", "Identifica avaliações negativas")
+System_Boundary(vozdocliente, "VozDoCliente") {
+    Container(n8n, "Workflow VozDoCliente", "n8n", "Recebe avaliações, coordena a classificação, persiste resultados e roteia alertas")
 }
 
-System_Ext(llm, "LLM", "Qwen3-4B em desenvolvimento ou API externa em produção")
-System_Ext(airtable, "Airtable", "Persistência das avaliações processadas")
-System_Ext(slack, "Slack", "Canal de alertas da equipe de CX")
-System_Ext(source, "Canal de entrada", "Sistema que envia avaliações")
-
-Rel(source, webhook, "POST /review", "HTTPS/JSON")
-Rel(webhook, orchestrator, "Dispara workflow")
-Rel(orchestrator, llmAdapter, "Solicita classificação")
-Rel(llmAdapter, llm, "Prompt + review_text", "HTTP/JSON")
-Rel(llm, llmAdapter, "sentiment + theme", "JSON")
-Rel(llmAdapter, parser, "Resposta do modelo")
-Rel(parser, orchestrator, "Dados normalizados")
-Rel(orchestrator, airtable, "Cria registro", "REST API")
-Rel(orchestrator, router, "Avaliação processada")
-Rel(router, slack, "Envia alerta se negativo", "REST API")
-Rel(cx, airtable, "Consulta resultados")
+Rel(source, n8n, "Envia avaliação", "HTTPS / JSON")
+Rel(n8n, llm, "Solicita classificação", "HTTP / JSON")
+Rel(llm, n8n, "Retorna sentimento e tema", "JSON")
+Rel(n8n, airtable, "Persiste avaliação", "REST API")
+Rel(n8n, slack, "Envia alerta se negativo", "Slack API")
+Rel(cx, airtable, "Consulta avaliações")
 Rel(cx, slack, "Recebe alertas")
+```

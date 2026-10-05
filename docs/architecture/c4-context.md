@@ -1,25 +1,57 @@
-# C4 — Nível 1: Contexto do Sistema
+# Arquitetura C4 — Nível 1: Contexto do Sistema
 
-## Objetivo
+## Visão geral
 
-Representar o VozDoCliente no seu contexto operacional, destacando usuários, sistemas externos e principais integrações.
+O VozDoCliente automatiza o processamento de avaliações de clientes. O sistema recebe uma avaliação, utiliza um modelo de linguagem para classificar seu sentimento e tema, registra o resultado e gera um alerta quando identifica uma avaliação negativa.
 
 ```mermaid
-C4Context
-title VozDoCliente — Diagrama de Contexto
+flowchart TB
 
-Person(cx, "Equipe de CX", "Recebe e trata avaliações de clientes")
+    CX["👤 Equipe de CX<br/>Acompanha avaliações e trata reclamações"]
 
-System(vozdocliente, "VozDoCliente", "Classifica avaliações por sentimento e tema, persiste os resultados e gera alertas para casos negativos")
+    SOURCE["Canal de avaliações<br/>Origem das avaliações"]
 
-System_Ext(canalEntrada, "Canal de entrada", "Envia avaliações ao webhook do sistema")
-System_Ext(llm, "Serviço de LLM", "Classifica sentimento e tema")
-System_Ext(airtable, "Airtable", "Armazena avaliações processadas")
-System_Ext(slack, "Slack", "Recebe alertas de avaliações negativas")
+    VDC["VozDoCliente<br/><br/>Classifica avaliações,<br/>registra resultados e<br/>gera alertas"]
 
-Rel(canalEntrada, vozdocliente, "Envia avaliação", "HTTPS/JSON")
-Rel(vozdocliente, llm, "Solicita classificação", "HTTPS/JSON")
-Rel(vozdocliente, airtable, "Persiste resultado", "HTTPS/REST")
-Rel(vozdocliente, slack, "Envia alerta", "HTTPS/REST")
-Rel(cx, airtable, "Consulta avaliações processadas")
-Rel(cx, slack, "Recebe e acompanha alertas")
+    LLM["Serviço de LLM<br/>Classificação de sentimento e tema"]
+
+    AIR["Airtable<br/>Armazenamento dos resultados"]
+
+    SLACK["Slack<br/>Alertas de avaliações negativas"]
+
+    SOURCE -->|"Envia avaliação"| VDC
+
+    VDC -->|"Solicita classificação"| LLM
+    LLM -->|"Retorna sentimento e tema"| VDC
+
+    VDC -->|"Registra resultado"| AIR
+    VDC -->|"Envia alerta se negativo"| SLACK
+
+    VDC -->|"Disponibiliza resultados e alertas"| CX
+```
+
+## Elementos
+
+### Equipe de CX
+
+Usuário operacional do VozDoCliente. Acompanha avaliações processadas e atua sobre casos que demandam atendimento.
+
+### Canal de avaliações
+
+Representa o sistema ou serviço responsável por enviar avaliações de clientes ao VozDoCliente.
+
+### VozDoCliente
+
+Sistema responsável por coordenar o processamento das avaliações, classificação, persistência e geração de alertas.
+
+### Serviço de LLM
+
+Sistema externo responsável por classificar o texto da avaliação por sentimento e tema.
+
+### Airtable
+
+Serviço externo utilizado para persistir avaliações processadas e suas classificações.
+
+### Slack
+
+Serviço externo utilizado para entregar alertas de avaliações negativas à equipe de CX.
