@@ -151,4 +151,6 @@ Os testes demonstram que o endpoint público de produção está funcional e que
 
 ## Evidências
 
-docs/evidencias/smoke-tests.png
+A execução dos smoke tests em produção está registrada na imagem:
+
+`docs/evidencias/smoke-tests.png`
