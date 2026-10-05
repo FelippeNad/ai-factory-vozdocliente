@@ -1,0 +1,343 @@
+{
+  "name": "VozDoCliente - Review Router v0 (n8n mirror)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "review",
+        "options": {
+          "rawBody": false
+        }
+      },
+      "id": "72ee269c-e5e9-490f-8ec8-921c50234e9e",
+      "name": "Webhook Review",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -1216,
+        112
+      ],
+      "webhookId": "vozdocliente-review-router"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:1234/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"qwen/qwen3-4b-2507\",\n  \"temperature\": 0.1,\n  \"max_tokens\": 200,\n  \"response_format\": { \"type\": \"text\" },\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"Você é um classificador de avaliações de clientes da VozDoCliente (SaaS de CX para varejo e marketplaces). Leia o texto da avaliação e responda APENAS com um JSON válido, sem texto extra, no formato: {\\\"sentiment\\\": \\\"<positivo|neutro|negativo>\\\", \\\"theme\\\": \\\"<entrega|produto|atendimento|preco|app_bug>\\\"}. Definições de sentiment: positivo (elogio/satisfeito), neutro (dúvida/sugestão sem carga), negativo (reclamação/frustração). Definições de theme: entrega (prazo/frete/extravio), produto (qualidade/defeito), atendimento (SAC/troca/reembolso), preco (valor/cobrança/cupom), app_bug (erro no app/site/checkout).\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": {{ JSON.stringify($json.body.review_text) }}\n    }\n  ]\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "73201e6d-1616-4928-a95f-dba0a2827202",
+      "name": "OpenAI Classificar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -976,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Faz o parse do JSON que o LLM devolveu e junta com o payload original do webhook.\n// Agora trata respostas inválidas do LLM e valida sentiment/theme.\n\nconst llmRaw = $json?.choices?.[0]?.message?.content;\n\nif (!llmRaw || typeof llmRaw !== 'string') {\n  throw new Error('Resposta do LLM ausente ou em formato inválido.');\n}\n\nlet parsed;\n\ntry {\n  parsed = JSON.parse(llmRaw);\n} catch (error) {\n  throw new Error(`Resposta do LLM não é um JSON válido: ${llmRaw}`);\n}\n\nconst webhook = $('Webhook Review').first().json.body;\n\nconst sentiment = (parsed.sentiment || '').toLowerCase().trim();\nconst theme = (parsed.theme || '').toLowerCase().trim();\n\nconst allowedSentiments = ['positivo', 'neutro', 'negativo'];\nconst allowedThemes = ['entrega', 'produto', 'atendimento', 'preco', 'app_bug'];\n\nif (!allowedSentiments.includes(sentiment)) {\n  throw new Error(`Sentiment inválido: ${sentiment}`);\n}\n\nif (!allowedThemes.includes(theme)) {\n  throw new Error(`Theme inválido: ${theme}`);\n}\n\nreturn [\n  {\n    json: {\n      review_id: webhook.review_id,\n      customer_name: webhook.customer_name,\n      source: webhook.source,\n      rating: webhook.rating,\n      review_text: webhook.review_text,\n      sentiment: sentiment,\n      theme: theme,\n      processed_at: new Date().toISOString()\n    }\n  }\n];"
+      },
+      "id": "2d999cef-4451-4d0d-a906-5722b7092e00",
+      "name": "Parse + Merge",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -736,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.airtable.com/v0/{{$env.AIRTABLE_BASE_ID}}/Reviews",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"fields\": {\n    \"review_id\": {{ JSON.stringify($('Parse + Merge').item.json.review_id) }},\n    \"customer_name\": {{ JSON.stringify($('Parse + Merge').item.json.customer_name) }},\n    \"source\": {{ JSON.stringify($('Parse + Merge').item.json.source) }},\n    \"rating\": {{ $('Parse + Merge').item.json.rating }},\n    \"review_text\": {{ JSON.stringify($('Parse + Merge').item.json.review_text) }},\n    \"sentiment\": {{ JSON.stringify($('Parse + Merge').item.json.sentiment) }},\n    \"theme\": {{ JSON.stringify($('Parse + Merge').item.json.theme) }},\n    \"processed_at\": {{ JSON.stringify($('Parse + Merge').item.json.processed_at) }}\n  }\n}",
+        "options": {}
+      },
+      "id": "0032d5be-578c-4108-a67a-a19e83820742",
+      "name": "Airtable Create",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -80,
+        112
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "OzgRnjqjVuPKoIsp",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "cond-negativo",
+              "leftValue": "={{ $('Parse + Merge').item.json.sentiment }}",
+              "rightValue": "negativo",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f777c7f4-76b3-45ec-b7c6-1d5e2d6ba723",
+      "name": "É negativo?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        160,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/chat.postMessage",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"channel\": \"#cx-alertas\",\n  \"text\": {{ JSON.stringify(\":rotating_light: *Avaliação NEGATIVA — tema: \" + $('Parse + Merge').item.json.theme + \"*\\nCliente: \" + $('Parse + Merge').item.json.customer_name + \" (origem: \" + $('Parse + Merge').item.json.source + \", nota: \" + $('Parse + Merge').item.json.rating + \")\\n>>> \" + $('Parse + Merge').item.json.review_text + \"\\n\\nTime responsável, responder em até 24h. Nenhuma reclamação sem resposta.\") }}\n}",
+        "options": {}
+      },
+      "id": "d6082608-9fe6-4483-97f5-382e7cb447dd",
+      "name": "Slack Alerta CX",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        416,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "OzgRnjqjVuPKoIsp",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.airtable.com/v0/{{$env.AIRTABLE_BASE_ID}}/Reviews",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "filterByFormula",
+              "value": "=={{ \"{review_id}='\" + $('Parse + Merge').item.json.review_id + \"'\" }}"
+            },
+            {
+              "name": "maxRecords",
+              "value": "1"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -528,
+        112
+      ],
+      "id": "d540d896-e7a8-47e3-892d-fcdb90d90946",
+      "name": "Airtable Buscar review_id",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "OzgRnjqjVuPKoIsp",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "599f592f-cb78-4039-8e2c-85536758b545",
+              "leftValue": "={{ $json.records.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -320,
+        112
+      ],
+      "id": "3bc24b2a-592c-45dd-8f53-ec7cfb172576",
+      "name": "deduplicação"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Review": {
+      "main": [
+        [
+          {
+            "node": "OpenAI Classificar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Classificar": {
+      "main": [
+        [
+          {
+            "node": "Parse + Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse + Merge": {
+      "main": [
+        [
+          {
+            "node": "Airtable Buscar review_id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Airtable Create": {
+      "main": [
+        [
+          {
+            "node": "É negativo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "É negativo?": {
+      "main": [
+        [
+          {
+            "node": "Slack Alerta CX",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Airtable Buscar review_id": {
+      "main": [
+        [
+          {
+            "node": "deduplicação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "deduplicação": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Airtable Create",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "eaa4df28-e561-4e0a-a0dc-3473c54191c1",
+  "meta": {
+    "instanceId": "ee2bb19613f415ef28a73474970325d30e045beae43ba702632613da1e3f06bc"
+  },
+  "nodeGroups": [],
+  "id": "kVxP9LwELMZE0JCG",
+  "tags": [
+    {
+      "updatedAt": "2026-10-05T00:59:49.421Z",
+      "createdAt": "2026-10-05T00:59:49.421Z",
+      "id": "PIwSDh0oEV2y40bU",
+      "name": "cx"
+    },
+    {
+      "updatedAt": "2026-10-05T00:59:49.416Z",
+      "createdAt": "2026-10-05T00:59:49.416Z",
+      "id": "Pd7RupLehQ0S4SOq",
+      "name": "prototipo"
+    }
+  ]
+}
