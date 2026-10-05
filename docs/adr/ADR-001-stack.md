@@ -24,13 +24,30 @@ O desenvolvimento local também precisa permitir testes com baixo custo, enquant
 
 Será utilizado **n8n como plataforma principal de orquestração**.
 
-Para desenvolvimento local, o workflow utilizará **LM Studio com Qwen3-4B**, através de endpoint compatível com a API da OpenAI.
+Para desenvolvimento local, o workflow utiliza:
 
-Para produção, será utilizada uma **API de LLM externa**, permitindo que o sistema funcione de forma independente da infraestrutura local.
+- n8n executado via Docker;
+- LM Studio como servidor local de inferência;
+- modelo Qwen3-4B;
+- Airtable DEV;
+- Slack DEV;
+- credenciais específicas de desenvolvimento.
 
-Airtable será utilizado para persistência dos resultados das avaliações e Slack para envio de alertas relacionados a avaliações negativas.
+Para produção, o workflow utiliza:
 
-Os workflows n8n serão exportados e versionados no repositório Git.
+- n8n hospedado no Railway;
+- OpenAI API como provedor externo de LLM;
+- modelo `gpt-5.6-luna`;
+- Airtable PROD;
+- Slack PROD;
+- PostgreSQL para persistência interna do n8n;
+- credenciais e variáveis próprias de produção.
+
+A utilização de uma API externa em produção permite que o sistema permaneça disponível independentemente da máquina do desenvolvedor.
+
+Os workflows n8n são exportados em JSON e versionados no repositório Git. A versão atual de produção está registrada em:
+
+`n8n-mirror/workflows/vozdocliente-router-v3.json`
 
 ## Alternativas consideradas
 
@@ -79,6 +96,9 @@ Desvantagens:
 - produção não depende da máquina do desenvolvedor;
 - maior facilidade de integração com pipelines de CI/CD;
 - maior controle sobre configuração e evolução da solução.
+- produção executada em infraestrutura pública independente do ambiente local;
+- imagem do n8n versionada explicitamente, evitando dependência de `latest`;
+- separação clara entre recursos e credenciais DEV e PROD.
 
 ### Negativas
 

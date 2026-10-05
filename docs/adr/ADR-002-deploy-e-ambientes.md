@@ -40,23 +40,37 @@ Esse ambiente será utilizado para testes, alterações no workflow e validaçã
 
 ### Produção
 
-O ambiente de produção será hospedado em infraestrutura pública independente da máquina local.
+O ambiente de produção é hospedado no Railway e independe da máquina do desenvolvedor.
 
-O ambiente utilizará:
+A infraestrutura utiliza:
 
-- n8n publicado em serviço de hospedagem;
-- API externa de LLM;
-- credenciais próprias de produção;
-- variáveis de ambiente configuradas na plataforma de hospedagem;
-- workflow correspondente à versão publicada no repositório.
+- n8n hospedado no Railway;
+- imagem `n8nio/n8n:2.41.7`, definida no `Dockerfile`;
+- PostgreSQL para persistência interna do n8n;
+- OpenAI API para classificação das avaliações;
+- Airtable PROD para persistência dos resultados;
+- Slack PROD para alertas de avaliações negativas;
+- variáveis de ambiente e secrets configurados diretamente na plataforma.
 
-O deploy será integrado ao GitHub Actions, de forma que alterações aprovadas e enviadas para a branch `main` possam acionar automaticamente a atualização do ambiente de produção.
+O endpoint público de produção é:
+
+`https://n8n-production-7813.up.railway.app/webhook/review`
+
+O workflow publicado também é exportado e versionado no Git para garantir rastreabilidade das alterações.
 
 ## Gestão de configuração e secrets
 
 Credenciais e tokens não serão armazenados diretamente no repositório.
 
 Arquivos `.env` permanecerão ignorados pelo Git.
+
+O identificador da base Airtable é fornecido através da variável:
+
+`AIRTABLE_BASE_ID`
+
+Dessa forma, o workflow não precisa armazenar o identificador da base diretamente em seus nodes.
+
+Credenciais de OpenAI, Airtable, Slack e a chave de criptografia do n8n não são versionadas no repositório.
 
 O repositório conterá apenas `.env.example`, documentando as variáveis necessárias sem valores reais.
 
@@ -72,18 +86,36 @@ Cada alteração relevante no fluxo deverá ser acompanhada pela atualização d
 
 Isso permite rastrear mudanças, associá-las a commits e recuperar versões anteriores.
 
+A versão atual do workflow de produção é:
+
+`n8n-mirror/workflows/vozdocliente-router-v3.json`
+
 ## Deploy
 
-O fluxo esperado para produção será:
+O repositório está conectado diretamente ao Railway.
 
-1. alteração e validação no ambiente de desenvolvimento;
-2. execução dos testes automatizados;
-3. atualização do workflow versionado;
-4. commit e push;
-5. abertura ou integração da alteração na branch `main`;
-6. execução do GitHub Actions;
-7. atualização automática do ambiente de produção;
-8. execução de smoke tests.
+O processo atual é:
+
+1. alteração e validação do workflow;
+2. exportação da versão atualizada para o Git;
+3. execução dos testes locais;
+4. commit e push para a branch `main`;
+5. execução automática do GitHub Actions;
+6. validação estrutural do workflow;
+7. execução dos testes de lógica de roteamento;
+8. detecção automática do novo commit pelo Railway;
+9. build da imagem definida no `Dockerfile`;
+10. deploy automático do serviço;
+11. validação do endpoint público por smoke test.
+
+O GitHub Actions está configurado em:
+
+`.github/workflows/ci.yml`
+
+O `Dockerfile` fixa a versão do n8n utilizada em produção:
+
+```dockerfile
+FROM n8nio/n8n:2.41.7
 
 ## Rollback
 
