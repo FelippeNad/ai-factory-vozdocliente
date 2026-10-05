@@ -1,29 +1,57 @@
-# C4 — Nível 2: Contêineres do Sistema
+# Arquitetura C4 — Nível 2: Containers
 
-## Objetivo
+## Visão geral
 
-Detalhar os principais componentes técnicos do VozDoCliente e as relações entre eles.
+O VozDoCliente é implementado com um workflow principal em n8n, responsável por receber avaliações, consultar um modelo de linguagem, persistir os resultados e enviar alertas quando necessário.
 
 ```mermaid
-C4Container
-title VozDoCliente — C4 Nível 2: Containers
+flowchart LR
+    source["Canal de avaliações"]
 
-Person(cx, "Equipe de CX", "Consulta avaliações e recebe alertas")
+    subgraph voz["VozDoCliente"]
+        n8n["Workflow VozDoCliente<br/>n8n<br/><br/>Recebe avaliações,<br/>coordena classificação,<br/>persiste resultados e<br/>roteia alertas"]
+    end
 
-System_Ext(source, "Canal de avaliações", "Envia avaliações de clientes")
-System_Ext(llm, "Serviço de LLM", "Classifica sentimento e tema")
-System_Ext(airtable, "Airtable", "Armazena avaliações processadas")
-System_Ext(slack, "Slack", "Recebe alertas de avaliações negativas")
+    llm["Serviço de LLM<br/>Classifica sentimento e tema"]
+    airtable["Airtable<br/>Armazena avaliações processadas"]
+    slack["Slack<br/>Canal de alertas"]
+    cx["Equipe de CX"]
 
-System_Boundary(vozdocliente, "VozDoCliente") {
-    Container(n8n, "Workflow VozDoCliente", "n8n", "Recebe avaliações, coordena a classificação, persiste resultados e roteia alertas")
-}
-
-Rel(source, n8n, "Envia avaliação", "HTTPS / JSON")
-Rel(n8n, llm, "Solicita classificação", "HTTP / JSON")
-Rel(llm, n8n, "Retorna sentimento e tema", "JSON")
-Rel(n8n, airtable, "Persiste avaliação", "REST API")
-Rel(n8n, slack, "Envia alerta se negativo", "Slack API")
-Rel(cx, airtable, "Consulta avaliações")
-Rel(cx, slack, "Recebe alertas")
+    source -->|"POST /review"| n8n
+    n8n -->|"Solicita classificação"| llm
+    llm -->|"Retorna sentiment + theme"| n8n
+    n8n -->|"Cria registro"| airtable
+    n8n -->|"Envia alerta se negativo"| slack
+    airtable -->|"Consulta"| cx
+    slack -->|"Notificação"| cx
 ```
+
+## Containers e serviços
+
+| Elemento | Tecnologia | Responsabilidade |
+| --- | --- | --- |
+| Workflow principal | n8n | Receber avaliações, orquestrar classificação, persistir resultados e enviar alertas |
+| Serviço de LLM | API compatível com OpenAI | Classificar sentimento e tema da avaliação |
+| Persistência | Airtable | Armazenar avaliações e classificações |
+| Notificação | Slack | Alertar a equipe de CX sobre avaliações negativas |
+
+## Responsabilidades internas do workflow
+
+O workflow n8n executa internamente as seguintes etapas:
+
+1. recebe a avaliação via webhook;
+2. envia o texto ao serviço de LLM;
+3. interpreta e valida a resposta recebida;
+4. registra a avaliação processada no Airtable;
+5. identifica avaliações negativas;
+6. envia alerta ao Slack quando necessário.
+
+Os nodes individuais do n8n não são representados como containers, pois fazem parte da implementação interna do workflow.
+
+## Ambientes
+
+Em desenvolvimento, o serviço de LLM é fornecido pelo LM Studio com Qwen3-4B.
+
+Em produção, o mesmo ponto de integração será configurado para utilizar uma API externa de LLM.
+
+A estrutura lógica do sistema permanece a mesma nos dois ambientes.
