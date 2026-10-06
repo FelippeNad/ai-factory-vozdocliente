@@ -6,45 +6,30 @@ O VozDoCliente é implementado com um workflow principal em n8n, responsável po
 
 ```mermaid
 flowchart LR
-    source["Canal de avaliações"]
 
-    subgraph voz["VozDoCliente"]
-        n8n["Workflow VozDoCliente
-        n8n / Railway
+    A[Canal de avaliações]
 
-        Recebe avaliações,
-        coordena classificação,
-        persiste resultados e
-        roteia alertas"]
-
-        postgres["PostgreSQL
-        Persistência interna
-        do n8n"]
+    subgraph SYS[VozDoCliente]
+        W[Workflow VozDoCliente\nn8n / Railway\n\nRecebe avaliações,\ncoordena classificação,\npersiste resultados e\nroteia alertas]
+        P[(PostgreSQL\nPersistência interna do n8n)]
     end
 
-    openai["OpenAI API
-    Classifica sentimento e tema"]
+    O[OpenAI API\nClassifica sentimento e tema]
+    T[Airtable PROD\nArmazena avaliações processadas]
+    S[Slack PROD\nCanal de alertas]
+    U[Equipe de CX]
 
-    airtable["Airtable PROD
-    Armazena avaliações processadas"]
+    A -->|POST /review| W
 
-    slack["Slack PROD
-    Canal de alertas"]
+    W -->|Persiste estado interno| P
+    W -->|Solicita classificação| O
+    O -->|Retorna sentimento + tema| W
 
-    cx["Equipe de CX"]
+    W -->|Cria registro| T
+    T -->|Consulta resultados| U
 
-    source -->|"POST /review"| n8n
-
-    n8n -->|"Solicita classificação"| openai
-    openai -->|"Retorna sentiment + theme"| n8n
-
-    n8n -->|"Persiste estado interno"| postgres
-
-    n8n -->|"Consulta e cria registros"| airtable
-    n8n -->|"Envia alerta se negativo"| slack
-
-    airtable -->|"Consulta resultados"| cx
-    slack -->|"Notificação"| cx
+    W -->|Envia alerta se negativo| S
+    S -->|Notificação| U
 ```
 
 ## Containers e serviços
