@@ -59,6 +59,17 @@ A classificação utiliza:
 - `preco`
 - `app_bug`
 
+## Como rodar localmente
+
+O ambiente de desenvolvimento utiliza n8n em Docker e LM Studio com Qwen3-4B.
+
+Para iniciar o n8n local:
+
+```bash
+cd n8n-mirror
+docker compose up -d
+```
+
 ## Ambientes
 
 ### Desenvolvimento

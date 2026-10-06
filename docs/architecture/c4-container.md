@@ -9,20 +9,41 @@ flowchart LR
     source["Canal de avaliações"]
 
     subgraph voz["VozDoCliente"]
-        n8n["Workflow VozDoCliente<br/>n8n<br/><br/>Recebe avaliações,<br/>coordena classificação,<br/>persiste resultados e<br/>roteia alertas"]
+        n8n["Workflow VozDoCliente
+        n8n / Railway
+
+        Recebe avaliações,
+        coordena classificação,
+        persiste resultados e
+        roteia alertas"]
+
+        postgres["PostgreSQL
+        Persistência interna
+        do n8n"]
     end
 
-    llm["Serviço de LLM<br/>Classifica sentimento e tema"]
-    airtable["Airtable<br/>Armazena avaliações processadas"]
-    slack["Slack<br/>Canal de alertas"]
+    openai["OpenAI API
+    Classifica sentimento e tema"]
+
+    airtable["Airtable PROD
+    Armazena avaliações processadas"]
+
+    slack["Slack PROD
+    Canal de alertas"]
+
     cx["Equipe de CX"]
 
     source -->|"POST /review"| n8n
-    n8n -->|"Solicita classificação"| llm
-    llm -->|"Retorna sentiment + theme"| n8n
-    n8n -->|"Cria registro"| airtable
+
+    n8n -->|"Solicita classificação"| openai
+    openai -->|"Retorna sentiment + theme"| n8n
+
+    n8n -->|"Persiste estado interno"| postgres
+
+    n8n -->|"Consulta e cria registros"| airtable
     n8n -->|"Envia alerta se negativo"| slack
-    airtable -->|"Consulta"| cx
+
+    airtable -->|"Consulta resultados"| cx
     slack -->|"Notificação"| cx
 ```
 
@@ -30,10 +51,11 @@ flowchart LR
 
 | Elemento | Tecnologia | Responsabilidade |
 | --- | --- | --- |
-| Workflow principal | n8n | Receber avaliações, orquestrar classificação, persistir resultados e enviar alertas |
-| Serviço de LLM | API compatível com OpenAI | Classificar sentimento e tema da avaliação |
-| Persistência | Airtable | Armazenar avaliações e classificações |
-| Notificação | Slack | Alertar a equipe de CX sobre avaliações negativas |
+| Workflow principal | n8n no Railway | Receber avaliações, orquestrar classificação, deduplicar, persistir resultados e enviar alertas |
+| Persistência interna | PostgreSQL | Armazenar dados internos do n8n em produção |
+| Serviço de LLM | OpenAI API | Classificar sentimento e tema da avaliação |
+| Persistência de negócio | Airtable PROD | Armazenar avaliações e classificações |
+| Notificação | Slack PROD | Alertar a equipe de CX sobre avaliações negativas |
 
 ## Responsabilidades internas do workflow
 
@@ -50,8 +72,20 @@ Os nodes individuais do n8n não são representados como containers, pois fazem 
 
 ## Ambientes
 
-Em desenvolvimento, o serviço de LLM é fornecido pelo LM Studio com Qwen3-4B.
+### Desenvolvimento
 
-Em produção, o mesmo ponto de integração será configurado para utilizar uma API externa de LLM.
+- n8n via Docker;
+- LM Studio;
+- Qwen3-4B;
+- Airtable DEV;
+- Slack DEV.
 
-A estrutura lógica do sistema permanece a mesma nos dois ambientes.
+### Produção
+
+- n8n no Railway;
+- PostgreSQL;
+- OpenAI API;
+- Airtable PROD;
+- Slack PROD.
+
+A lógica principal do workflow permanece equivalente entre os ambientes, enquanto infraestrutura, modelo e credenciais são separados.

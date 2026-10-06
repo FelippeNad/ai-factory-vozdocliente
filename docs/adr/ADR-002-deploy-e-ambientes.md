@@ -116,6 +116,7 @@ O `Dockerfile` fixa a versão do n8n utilizada em produção:
 
 ```dockerfile
 FROM n8nio/n8n:2.41.7
+```
 
 ## Rollback
 
