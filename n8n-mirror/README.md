@@ -2,6 +2,14 @@
 
 ## Etapa 2: v4 candidata
 
+Retenção e exclusão agora têm workflows **independentes** e inativos:
+`vozdocliente-retencao-v1.json` (DEV, DRY_RUN padrão) e
+`vozdocliente-retencao-demo.json` (somente stubs Code, sem HTTP/credenciais).
+A [documentação de retenção](../docs/etapa-2-retencao-exclusao.md) explica a
+auditoria, variáveis, limites, histórico n8n e captura de evidências.
+O Compose independente `docker-compose.retention.yml` usa porta `5680` e volume
+próprio; não altera a instância existente de classificação.
+
 `workflows/vozdocliente-router-v4.json` adiciona `Sanitizar PII` antes do LLM e
 permanece **inativa**, sem deploy. A v3 foi preservada. O LLM recebe exclusivamente
 o campo sanitizado, sem fallback. Slack recebe apenas tema e nota; Airtable mantém

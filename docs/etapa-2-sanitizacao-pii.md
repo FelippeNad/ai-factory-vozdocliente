@@ -4,6 +4,12 @@ Implementação local na branch `etapa-2`, em 02/11/2026. A v3 foi analisada e
 preservada; a v4 é uma candidata **inativa**, sem deploy. Nenhuma API foi chamada,
 nenhuma credencial foi alterada e nenhum dado pessoal real foi usado nos testes.
 
+Continuação após o commit `f66cb79`: a política de retenção e exclusão foi
+implementada em workflows independentes, sem alterar v3/v4. Consulte
+[retenção, auditoria e demonstração local](etapa-2-retencao-exclusao.md). As
+pendências registradas abaixo descrevem o estado ao concluir a sanitização;
+a nova rotina adiciona retenção DEV, sem aplicar configurações à produção.
+
 ## Diagnóstico anterior à alteração
 
 - A v3 conecta `Webhook Review` diretamente a `LLM PROD`, que lê

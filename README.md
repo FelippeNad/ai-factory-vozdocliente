@@ -189,6 +189,19 @@ do LLM e os riscos de Airtable, Slack, logs e histórico estão documentados em
 anonimização nem conformidade integral com a LGPD. O Airtable ainda recebe dados
 originais; o Slack da v4 recebe apenas tema, nota e instrução fixa de tratativa.
 
+Retenção da Etapa 2: `vozdocliente-retencao-v1.json` é independente, inativo e usa
+Schedule Trigger, prazo configurável de 30 dias demonstrativos, paginação,
+auditoria agregada e DRY_RUN por padrão. DELETE exige DEV e confirmações explícitas.
+A [política de retenção e roteiro de evidências](docs/etapa-2-retencao-exclusao.md)
+separa reviews do Airtable do histórico interno n8n e descreve riscos/recuperação.
+
+Para demonstrar sem APIs nem credenciais, importe
+`n8n-mirror/workflows/vozdocliente-retencao-demo.json` no n8n local, mantenha inativo
+e clique **Execute Workflow**. O resumo esperado é: 6 analisados, 2 elegíveis,
+0 excluídos, 3 páginas e 2 datas inválidas/ausentes intencionais (`status=partial`).
+Uma instância isolada opcional está em `n8n-mirror/docker-compose.retention.yml`,
+na porta `5680` com volume próprio. Não foram iniciados containers nesta entrega.
+
 As credenciais não são armazenadas diretamente no JSON exportado. Cada ambiente mantém suas próprias credenciais.
 
 O identificador da base Airtable é obtido por variável de ambiente:
@@ -206,6 +219,8 @@ python tests/validate_workflows.py
 python tests/test_routing_logic.py
 python -m unittest discover -s tests -v
 node tests/test_pii_sanitization.cjs
+node tests/test_retention.cjs
+python scripts/build_retention_workflow.py --check
 ```
 
 `validate_workflows.py` verifica a estrutura dos workflows e suas conexões.
@@ -215,6 +230,11 @@ node tests/test_pii_sanitization.cjs
 Os novos testes executam o JavaScript real da v4, validam ausência de fallback e
 de caminhos que contornem a sanitização, e preservação das categorias com dados
 sintéticos. Requerem Python 3.12+ e Node.js 22+, sem dependências adicionais.
+
+Os testes de retenção percorrem os nodes e conexões exportados com Airtable
+simulado, incluindo falhas, datas, paginação e bloqueios de exclusão. As fontes
+em `n8n-mirror/retention/` geram os exports via
+`python scripts/build_retention_workflow.py`; o CI verifica sua sincronização.
 
 ## Smoke tests de produção
 

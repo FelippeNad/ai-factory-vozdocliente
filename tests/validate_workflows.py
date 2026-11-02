@@ -17,6 +17,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MAKE_PATH = os.path.join(ROOT, "workflows", "vozdocliente-make-blueprint.json")
 N8N_PATHS = [os.path.join(ROOT, "n8n-mirror", "workflows", f"vozdocliente-router-v{version}.json")
              for version in (3, 4)]
+RETENTION_PATHS = [os.path.join(ROOT, "n8n-mirror", "workflows", filename) for filename in
+                   ("vozdocliente-retencao-v1.json", "vozdocliente-retencao-demo.json")]
 
 failures = []
 
@@ -172,11 +174,59 @@ def validate_n8n(workflow_path):
               + (f" ({errors})" if errors else ""), not errors)
 
 
+def retention_structure_errors(wf, demo=False):
+    errors = []
+    nodes = {node["name"]: node for node in wf["nodes"]}
+    if len(nodes) != len(wf["nodes"]):
+        errors.append("nomes de nodes repetidos")
+    if wf.get("active") is not False or wf.get("pinData"):
+        errors.append("retencao deve permanecer inativa e sem dados fixados")
+    types = [node["type"] for node in wf["nodes"]]
+    if types.count("n8n-nodes-base.scheduleTrigger") != 1 or "n8n-nodes-base.webhook" in types:
+        errors.append("retencao exige agenda independente e nenhum webhook")
+    expected_http = 0 if demo else 1
+    if types.count("n8n-nodes-base.httpRequest") != expected_http:
+        errors.append("quantidade inesperada de transportes HTTP")
+    if any(node.get("disabled") or node.get("credentials") for node in wf["nodes"]):
+        errors.append("exportacao deve estar sem credenciais e sem nodes desabilitados")
+    if wf.get("settings", {}).get("timezone") != "America/Sao_Paulo":
+        errors.append("fuso da agenda ausente")
+    expected_settings = {"saveDataErrorExecution": "none", "saveDataSuccessExecution": "none",
+                         "saveManualExecutions": False, "saveExecutionProgress": False}
+    if any(wf.get("settings", {}).get(key) != value for key, value in expected_settings.items()):
+        errors.append("historico de payloads deve estar desabilitado")
+    if not demo:
+        for barrier in ("Motor de retencao", "Validar operacao DEV", "Ha operacao segura?"):
+            if reachable(wf, "Agenda de retencao", "Airtable DEV operacao", blocked=barrier):
+                errors.append("bypass de barreira de retencao: " + barrier)
+        http = nodes.get("Airtable DEV operacao", {})
+        options = http.get("parameters", {}).get("options", {})
+        if http.get("retryOnFail") is not False or http.get("onError") != "continueRegularOutput":
+            errors.append("HTTP deve encaminhar falha para metricas sem repeticao automatica")
+        if options.get("redirect", {}).get("redirect", {}).get("followRedirects") is not False:
+            errors.append("redirecionamentos HTTP devem estar desabilitados")
+    refs = all(src in nodes and dst in nodes for src, dst in edges(wf))
+    if not refs:
+        errors.append("conexao para node inexistente")
+    return errors
+
+
+def validate_retention(workflow_path):
+    print(f"\n=== retencao: {os.path.basename(workflow_path)} ===")
+    with open(workflow_path, encoding="utf-8") as stream:
+        wf = json.load(stream)
+    errors = retention_structure_errors(wf, demo=workflow_path.endswith("demo.json"))
+    check("retencao: agenda, barreiras DEV, transporte e nao retencao de payloads"
+          + (f" ({errors})" if errors else ""), not errors)
+
+
 if __name__ == "__main__":
     try:
         validate_make()
         for workflow_path in N8N_PATHS:
             validate_n8n(workflow_path)
+        for workflow_path in RETENTION_PATHS:
+            validate_retention(workflow_path)
     except Exception as exc:  # pragma: no cover
         print(f"\n[ERRO FATAL] {type(exc).__name__}: {exc}")
         sys.exit(2)

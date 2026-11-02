@@ -4,6 +4,17 @@ Todas as mudanças relevantes do projeto são registradas neste arquivo.
 
 ## [Não lançado] — Etapa 2
 
+- Adicionados workflows independentes e inativos de retenção DEV e demonstração
+  offline sem HTTP, mantendo os arquivos v3/v4 de classificação intactos.
+- Política configurável (30 dias demonstrativos), Schedule Trigger diário,
+  DRY_RUN padrão, verificação de schema `processed_at`, paginação e limites.
+- Exclusão condicionada a DEV/confirmações, com auditoria agregada prévia,
+  releitura do candidato e checkpoint; falhas interrompem novas exclusões.
+- Adicionados fontes/gerador determinístico, testes sintéticos do grafo real,
+  Compose DEV isolado com proposta de pruning n8n, variáveis e roteiro de evidências.
+- Documentados recuperação, desfechos incertos, concorrência e retenções separadas
+  em `docs/etapa-2-retencao-exclusao.md`. Nenhuma exclusão real ou deploy executado.
+
 - Adicionada v4 inativa com node Code `Sanitizar PII` antes do LLM, máscaras de
   CPF/CNPJ/e-mail/telefone/CEP/URLs e campo sanitizado obrigatório sem fallback.
 - Preservadas v3, credenciais, versões dos nodes e persistência original no Airtable.

@@ -1,0 +1,248 @@
+{
+  "name": "VozDoCliente - Retencao DEMO OFFLINE (sem HTTP)",
+  "nodes": [
+    {
+      "name": "Agenda de retencao",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 3 * * *"
+            }
+          ]
+        }
+      },
+      "position": [
+        -1000,
+        0
+      ],
+      "id": "c97528d4-670d-51cd-976a-983db5e79914"
+    },
+    {
+      "name": "Motor de retencao",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Fonte compartilhada incorporada ao JSON por scripts/build_retention_workflow.py.\n// Sem rede, dependencias, secrets, console ou texto de reviews.\nconst RECORD_ID = /^rec[A-Za-z0-9]{14}$/;\nconst METRICS = ['analyzed', 'eligible', 'deleted', 'failures', 'invalid_dates',\n  'recent', 'pages', 'attempted', 'skipped_changed', 'unknown_outcome'];\nconst AUDIT_TYPES = {\n  run_id: 'singleLineText', mode: 'singleLineText', status: 'singleLineText',\n  error_codes: 'singleLineText', retention_days: 'number', cutoff: 'dateTime',\n  started_at: 'dateTime', updated_at: 'dateTime',\n  ...Object.fromEntries(METRICS.map(key => [key, 'number'])),\n};\n\nfunction settings(env) {\n  const integer = (key, fallback, max) => {\n    const value = env[key] === undefined || env[key] === '' ? String(fallback) : env[key];\n    if (typeof value !== 'string' || !/^[1-9]\\d*$/.test(value) || Number(value) > max) throw Error('CONFIG');\n    return Number(value);\n  };\n  const dry = env.RETENTION_DRY_RUN === undefined || env.RETENTION_DRY_RUN === ''\n    ? 'true' : env.RETENTION_DRY_RUN;\n  if (!['true', 'false'].includes(dry) || env.RETENTION_ENV !== 'DEV') throw Error('CONFIG');\n  const base = env.RETENTION_DEV_BASE_ID;\n  const table = env.RETENTION_TABLE_ID;\n  const auditTable = env.RETENTION_AUDIT_TABLE_ID;\n  if (!/^app[A-Za-z0-9]{14}$/.test(base || '') || !/^tbl[A-Za-z0-9]{14}$/.test(table || '') ||\n      !/^tbl[A-Za-z0-9]{14}$/.test(auditTable || '') || table === auditTable) throw Error('CONFIG');\n  const protectedBases = (env.RETENTION_PROTECTED_BASE_IDS || '').split(',').filter(Boolean);\n  if (protectedBases.some(id => !/^app[A-Za-z0-9]{14}$/.test(id)) || protectedBases.includes(base)) throw Error('CONFIG');\n  if (dry === 'false' && (!protectedBases.length || env.RETENTION_CONFIRM_DEV_BASE_ID !== base ||\n      env.RETENTION_DELETE_CONFIRMATION !== 'DELETE_DEV_EXPIRED_REVIEWS')) throw Error('CONFIG');\n  return { environment: 'DEV', dry_run: dry === 'true', base, table, auditTable,\n    days: integer('RETENTION_DAYS', 30, 3650),\n    pageSize: integer('RETENTION_PAGE_SIZE', 100, 100),\n    maxPages: integer('RETENTION_MAX_PAGES', 10, 50),\n    maxAnalyzed: integer('RETENTION_MAX_ANALYZED', 1000, 5000),\n    maxDelete: integer('RETENTION_MAX_DELETE', 10, 100),\n    // Detecta mudancas da denylist/confirmacoes durante uma execucao.\n    protectedBases: [...protectedBases].sort(),\n    confirmation: env.RETENTION_CONFIRM_DEV_BASE_ID || '',\n    deleteConfirmation: env.RETENTION_DELETE_CONFIRMATION || '',\n  };\n}\n\nfunction timestamp(value) {\n  // Nao usa Date.parse sozinho: ele normaliza datas impossiveis como 30/02.\n  if (typeof value !== 'string') return null;\n  const match = value.match(/^(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}):(\\d{2}):(\\d{2})(?:\\.(\\d{1,3}))?(Z|[+-]\\d{2}:\\d{2})$/);\n  if (!match) return null;\n  const [, year, month, day, hour, minute, second, , zone] = match;\n  const y = Number(year), m = Number(month), d = Number(day);\n  const leap = y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0);\n  const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];\n  if (y < 1 || m < 1 || m > 12 || d < 1 || d > days[m - 1] ||\n      Number(hour) > 23 || Number(minute) > 59 || Number(second) > 59) return null;\n  if (zone !== 'Z' && (Number(zone.slice(1, 3)) > 14 || Number(zone.slice(4)) > 59 ||\n      (zone.slice(1, 3) === '14' && zone.slice(4) !== '00'))) return null;\n  const time = Date.parse(value);\n  return Number.isFinite(time) ? time : null;\n}\n\nfunction failure(s, code) {\n  s.metrics.failures++;\n  if (!s.codes.includes(code)) s.codes.push(code);\n}\n\nfunction status(s) {\n  if (s.blocked) return 'blocked';\n  if (s.metrics.failures) return 'partial';\n  return s.config.dry_run ? 'dry_run' : 'completed';\n}\n\nfunction auditFields(s, state) {\n  return { run_id: s.run_id, mode: s.config.dry_run ? 'DRY_RUN' : 'DELETE_DEV',\n    status: state, error_codes: s.codes.join(','), retention_days: s.config.days,\n    cutoff: s.cutoff, started_at: s.started_at, updated_at: new Date().toISOString(), ...s.metrics };\n}\n\nfunction auditConfirmed(body, s) {\n  if (!RECORD_ID.test(body?.id || '') || !body.fields || !s.audit_expected) return false;\n  return Object.entries(s.audit_expected).every(([name, value]) => {\n    // Airtable omite campos vazios na resposta.\n    if (name === 'error_codes' && value === '') return !body.fields[name];\n    if (AUDIT_TYPES[name] === 'dateTime') return timestamp(body.fields[name]) === timestamp(value);\n    return body.fields[name] === value;\n  });\n}\n\nfunction finish(s) { s.done = true; s.action = null; return s; }\n\nfunction auditOrFinish(s) {\n  if (!s.schema_verified || s.audit_failed) return finish(s);\n  s.action = s.audit_id ? 'audit_update' : 'audit_create';\n  s.final_audit = true;\n  return s;\n}\n\nfunction block(s, code) {\n  failure(s, code); s.blocked = true;\n  return auditOrFinish(s);\n}\n\nfunction nextCandidate(s) {\n  s.recheck = null;\n  if (s.blocked || s.index >= s.candidates.length) return auditOrFinish(s);\n  s.action = 'recheck';\n  return s;\n}\n\nfunction checkSchema(body, config) {\n  if (!body || !Array.isArray(body.tables)) return false;\n  const reviews = body.tables.find(table => table.id === config.table);\n  const audit = body.tables.find(table => table.id === config.auditTable);\n  if (reviews?.name !== 'Reviews' || audit?.name !== 'RetentionAudit') return false;\n  if (!Array.isArray(reviews.fields) || !Array.isArray(audit.fields)) return false;\n  if (reviews.fields.filter(field => field.name === 'processed_at' && field.type === 'dateTime').length !== 1) return false;\n  return Object.entries(AUDIT_TYPES).every(([name, type]) =>\n    audit.fields.some(field => field.name === name && field.type === type));\n}\n\nconst input = $input.first().json;\nlet s = input.state;\nif (!s) {\n  const now = Date.now();\n  s = { config: null, started_at: new Date(now).toISOString(), now, deadline: now + 600000,\n    run_id: 'retention-' + (/^\\d{1,30}$/.test(String($execution.id)) ? String($execution.id) : String(now)),\n    metrics: Object.fromEntries(METRICS.map(key => [key, 0])), codes: [],\n    candidates: [], seen: [], offsets: [], offset: null, index: 0,\n    schema_verified: false, scan_complete: false, audit_id: null, audit_failed: false,\n    audit_finalized: false, blocked: false, done: false, action: 'schema' };\n  try {\n    s.config = settings({\"RETENTION_ENV\": \"DEV\", \"RETENTION_DRY_RUN\": \"true\", \"RETENTION_DAYS\": \"30\", \"RETENTION_DEV_BASE_ID\": \"app00000000000000\", \"RETENTION_TABLE_ID\": \"tbl00000000000001\", \"RETENTION_AUDIT_TABLE_ID\": \"tbl00000000000002\", \"RETENTION_PAGE_SIZE\": \"2\"});\n    s.cutoff = new Date(now - s.config.days * 86400000).toISOString();\n  } catch {\n    failure(s, 'CONFIG_INVALID'); s.blocked = true; finish(s);\n  }\n} else if (!s.done) {\n  const response = input.response;\n  const code = response?.statusCode;\n  const body = response?.body;\n  const action = s.action;\n  const ok = Number.isInteger(code) && code >= 200 && code < 300;\n  if (!ok) {\n    const reason = code === 429 ? 'HTTP_429' : code >= 500 ? 'HTTP_5XX'\n      : Number.isInteger(code) ? 'HTTP_REJECTED' : 'NETWORK_ERROR';\n    if (action === 'audit_create' || action === 'audit_update') {\n      failure(s, 'AUDIT_FAILED'); failure(s, reason);\n      s.audit_failed = true; s.blocked = true; finish(s);\n    } else {\n      // Nao repete DELETE: timeout/5xx pode ter ocorrido depois da exclusao.\n      if (action === 'delete' && (!Number.isInteger(code) || code >= 500)) s.metrics.unknown_outcome++;\n      block(s, reason);\n    }\n  } else if (action === 'schema') {\n    if (!checkSchema(body, s.config)) block(s, 'SCHEMA_INVALID');\n    else { s.schema_verified = true; s.action = 'list'; }\n  } else if (action === 'list') {\n    const records = body?.records;\n    const remaining = Math.min(s.config.pageSize, s.config.maxAnalyzed - s.metrics.analyzed);\n    if (!Array.isArray(records) || records.length > remaining) {\n      block(s, 'PAGE_INVALID');\n    } else {\n      s.metrics.pages++;\n      for (const record of records) {\n        if (!RECORD_ID.test(record?.id || '') || s.seen.includes(record.id) ||\n            !record.fields || typeof record.fields !== 'object' || Array.isArray(record.fields)) {\n          block(s, 'RECORD_INVALID'); break;\n        }\n        s.seen.push(record.id); s.metrics.analyzed++;\n        const time = timestamp(record.fields.processed_at);\n        if (time === null || time > s.now) {\n          s.metrics.invalid_dates++; failure(s, 'DATE_INVALID');\n        } else if (time < Date.parse(s.cutoff)) {\n          s.metrics.eligible++;\n          // Mantem memoria limitada mesmo quando o total elegivel ultrapassa o teto.\n          if (s.candidates.length < s.config.maxDelete + 1) {\n            s.candidates.push({ id: record.id, time, processed_at: new Date(time).toISOString() });\n          }\n        } else s.metrics.recent++;\n      }\n      if (!s.blocked) {\n        const offset = body.offset;\n        if (offset !== undefined && (typeof offset !== 'string' || !/^[\\x21-\\x7e]{1,1024}$/.test(offset) ||\n            !records.length || s.offsets.includes(offset))) block(s, 'PAGINATION_INVALID');\n        else if (offset !== undefined) {\n          if (s.metrics.pages >= s.config.maxPages || s.metrics.analyzed >= s.config.maxAnalyzed) block(s, 'SCAN_LIMIT');\n          else { s.offsets.push(offset); s.offset = offset; s.action = 'list'; }\n        } else {\n          s.scan_complete = true;\n          if (s.metrics.eligible > s.config.maxDelete) block(s, 'DELETE_LIMIT');\n          else {\n            s.action = 'audit_create';\n            s.final_audit = s.config.dry_run || !s.candidates.length;\n          }\n        }\n      }\n    }\n  } else if (action === 'audit_create') {\n    if (!auditConfirmed(body, s)) {\n      failure(s, 'AUDIT_FAILED'); s.audit_failed = true; s.blocked = true; finish(s);\n    } else {\n      s.audit_id = body.id;\n      if (s.final_audit) { s.audit_finalized = true; finish(s); }\n      else nextCandidate(s);\n    }\n  } else if (action === 'recheck') {\n    const candidate = s.candidates[s.index];\n    if (!Array.isArray(body?.records) || body.records.length > 1) block(s, 'RECHECK_INVALID');\n    else {\n      const record = body.records[0];\n      const time = timestamp(record?.fields?.processed_at);\n      if (record && record.id !== candidate.id) block(s, 'RECHECK_INVALID');\n      else if (!record || time === null || time !== candidate.time || time >= Date.parse(s.cutoff)) {\n        s.metrics.skipped_changed++; s.index++;\n        if (record && time === null) { s.metrics.invalid_dates++; failure(s, 'DATE_INVALID'); }\n        s.action = 'audit_update'; s.final_audit = s.index >= s.candidates.length;\n      } else { s.recheck = { id: record.id, time }; s.action = 'delete'; }\n    }\n  } else if (action === 'delete') {\n    if (body?.id !== s.candidates[s.index]?.id || body?.deleted !== true) {\n      s.metrics.unknown_outcome++; block(s, 'DELETE_NOT_CONFIRMED');\n    } else {\n      s.metrics.deleted++; s.index++; s.recheck = null;\n      s.action = 'audit_update'; s.final_audit = s.index >= s.candidates.length;\n    }\n  } else if (action === 'audit_update') {\n    if (body?.id !== s.audit_id || !auditConfirmed(body, s)) {\n      failure(s, 'AUDIT_FAILED'); s.audit_failed = true; s.blocked = true; finish(s);\n    } else if (s.final_audit) { s.audit_finalized = true; finish(s); }\n    else nextCandidate(s);\n  } else block(s, 'STATE_INVALID');\n}\n// Nao propaga body, headers nem mensagens de erro recebidas do provedor.\nreturn [{ json: { state: s }, pairedItem: { item: 0 } }];\n"
+      },
+      "position": [
+        -760,
+        0
+      ],
+      "id": "c08cfbcc-2bf4-5fca-b775-b2cef487dd00"
+    },
+    {
+      "name": "Limitar taxa",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": 1,
+        "unit": "seconds"
+      },
+      "position": [
+        -520,
+        0
+      ],
+      "id": "5cc7be91-1dec-57ba-8f9e-1fb4e19942ed",
+      "webhookId": "vozdocliente-retention-demo-rate-limit"
+    },
+    {
+      "name": "Validar operacao DEV",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Fonte compartilhada incorporada ao JSON por scripts/build_retention_workflow.py.\n// Sem rede, dependencias, secrets, console ou texto de reviews.\nconst RECORD_ID = /^rec[A-Za-z0-9]{14}$/;\nconst METRICS = ['analyzed', 'eligible', 'deleted', 'failures', 'invalid_dates',\n  'recent', 'pages', 'attempted', 'skipped_changed', 'unknown_outcome'];\nconst AUDIT_TYPES = {\n  run_id: 'singleLineText', mode: 'singleLineText', status: 'singleLineText',\n  error_codes: 'singleLineText', retention_days: 'number', cutoff: 'dateTime',\n  started_at: 'dateTime', updated_at: 'dateTime',\n  ...Object.fromEntries(METRICS.map(key => [key, 'number'])),\n};\n\nfunction settings(env) {\n  const integer = (key, fallback, max) => {\n    const value = env[key] === undefined || env[key] === '' ? String(fallback) : env[key];\n    if (typeof value !== 'string' || !/^[1-9]\\d*$/.test(value) || Number(value) > max) throw Error('CONFIG');\n    return Number(value);\n  };\n  const dry = env.RETENTION_DRY_RUN === undefined || env.RETENTION_DRY_RUN === ''\n    ? 'true' : env.RETENTION_DRY_RUN;\n  if (!['true', 'false'].includes(dry) || env.RETENTION_ENV !== 'DEV') throw Error('CONFIG');\n  const base = env.RETENTION_DEV_BASE_ID;\n  const table = env.RETENTION_TABLE_ID;\n  const auditTable = env.RETENTION_AUDIT_TABLE_ID;\n  if (!/^app[A-Za-z0-9]{14}$/.test(base || '') || !/^tbl[A-Za-z0-9]{14}$/.test(table || '') ||\n      !/^tbl[A-Za-z0-9]{14}$/.test(auditTable || '') || table === auditTable) throw Error('CONFIG');\n  const protectedBases = (env.RETENTION_PROTECTED_BASE_IDS || '').split(',').filter(Boolean);\n  if (protectedBases.some(id => !/^app[A-Za-z0-9]{14}$/.test(id)) || protectedBases.includes(base)) throw Error('CONFIG');\n  if (dry === 'false' && (!protectedBases.length || env.RETENTION_CONFIRM_DEV_BASE_ID !== base ||\n      env.RETENTION_DELETE_CONFIRMATION !== 'DELETE_DEV_EXPIRED_REVIEWS')) throw Error('CONFIG');\n  return { environment: 'DEV', dry_run: dry === 'true', base, table, auditTable,\n    days: integer('RETENTION_DAYS', 30, 3650),\n    pageSize: integer('RETENTION_PAGE_SIZE', 100, 100),\n    maxPages: integer('RETENTION_MAX_PAGES', 10, 50),\n    maxAnalyzed: integer('RETENTION_MAX_ANALYZED', 1000, 5000),\n    maxDelete: integer('RETENTION_MAX_DELETE', 10, 100),\n    // Detecta mudancas da denylist/confirmacoes durante uma execucao.\n    protectedBases: [...protectedBases].sort(),\n    confirmation: env.RETENTION_CONFIRM_DEV_BASE_ID || '',\n    deleteConfirmation: env.RETENTION_DELETE_CONFIRMATION || '',\n  };\n}\n\nfunction timestamp(value) {\n  // Nao usa Date.parse sozinho: ele normaliza datas impossiveis como 30/02.\n  if (typeof value !== 'string') return null;\n  const match = value.match(/^(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}):(\\d{2}):(\\d{2})(?:\\.(\\d{1,3}))?(Z|[+-]\\d{2}:\\d{2})$/);\n  if (!match) return null;\n  const [, year, month, day, hour, minute, second, , zone] = match;\n  const y = Number(year), m = Number(month), d = Number(day);\n  const leap = y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0);\n  const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];\n  if (y < 1 || m < 1 || m > 12 || d < 1 || d > days[m - 1] ||\n      Number(hour) > 23 || Number(minute) > 59 || Number(second) > 59) return null;\n  if (zone !== 'Z' && (Number(zone.slice(1, 3)) > 14 || Number(zone.slice(4)) > 59 ||\n      (zone.slice(1, 3) === '14' && zone.slice(4) !== '00'))) return null;\n  const time = Date.parse(value);\n  return Number.isFinite(time) ? time : null;\n}\n\nfunction failure(s, code) {\n  s.metrics.failures++;\n  if (!s.codes.includes(code)) s.codes.push(code);\n}\n\nfunction status(s) {\n  if (s.blocked) return 'blocked';\n  if (s.metrics.failures) return 'partial';\n  return s.config.dry_run ? 'dry_run' : 'completed';\n}\n\nfunction auditFields(s, state) {\n  return { run_id: s.run_id, mode: s.config.dry_run ? 'DRY_RUN' : 'DELETE_DEV',\n    status: state, error_codes: s.codes.join(','), retention_days: s.config.days,\n    cutoff: s.cutoff, started_at: s.started_at, updated_at: new Date().toISOString(), ...s.metrics };\n}\n\nfunction auditConfirmed(body, s) {\n  if (!RECORD_ID.test(body?.id || '') || !body.fields || !s.audit_expected) return false;\n  return Object.entries(s.audit_expected).every(([name, value]) => {\n    // Airtable omite campos vazios na resposta.\n    if (name === 'error_codes' && value === '') return !body.fields[name];\n    if (AUDIT_TYPES[name] === 'dateTime') return timestamp(body.fields[name]) === timestamp(value);\n    return body.fields[name] === value;\n  });\n}\n\nfunction finish(s) { s.done = true; s.action = null; return s; }\n\nfunction auditOrFinish(s) {\n  if (!s.schema_verified || s.audit_failed) return finish(s);\n  s.action = s.audit_id ? 'audit_update' : 'audit_create';\n  s.final_audit = true;\n  return s;\n}\n\nfunction block(s, code) {\n  failure(s, code); s.blocked = true;\n  return auditOrFinish(s);\n}\n\nfunction nextCandidate(s) {\n  s.recheck = null;\n  if (s.blocked || s.index >= s.candidates.length) return auditOrFinish(s);\n  s.action = 'recheck';\n  return s;\n}\n\nfunction checkSchema(body, config) {\n  if (!body || !Array.isArray(body.tables)) return false;\n  const reviews = body.tables.find(table => table.id === config.table);\n  const audit = body.tables.find(table => table.id === config.auditTable);\n  if (reviews?.name !== 'Reviews' || audit?.name !== 'RetentionAudit') return false;\n  if (!Array.isArray(reviews.fields) || !Array.isArray(audit.fields)) return false;\n  if (reviews.fields.filter(field => field.name === 'processed_at' && field.type === 'dateTime').length !== 1) return false;\n  return Object.entries(AUDIT_TYPES).every(([name, type]) =>\n    audit.fields.some(field => field.name === name && field.type === type));\n}\n\nconst s = $input.first().json.state;\nlet request = null;\nif (!s.done) {\n  try {\n    const current = settings({\"RETENTION_ENV\": \"DEV\", \"RETENTION_DRY_RUN\": \"true\", \"RETENTION_DAYS\": \"30\", \"RETENTION_DEV_BASE_ID\": \"app00000000000000\", \"RETENTION_TABLE_ID\": \"tbl00000000000001\", \"RETENTION_AUDIT_TABLE_ID\": \"tbl00000000000002\", \"RETENTION_PAGE_SIZE\": \"2\"});\n    if (JSON.stringify(current) !== JSON.stringify(s.config)) throw Error('CONFIG_CHANGED');\n    if (Date.now() > s.deadline && !['audit_create', 'audit_update'].includes(s.action)) {\n      block(s, 'TIME_LIMIT');\n    }\n    if (s.action === 'delete') {\n      const candidate = s.candidates[s.index];\n      if (current.dry_run || !s.schema_verified || !s.scan_complete || !s.audit_id || s.audit_failed || s.blocked ||\n          !candidate || !RECORD_ID.test(candidate.id) || s.recheck?.id !== candidate.id ||\n          s.recheck?.time !== candidate.time || candidate.time >= Date.parse(s.cutoff) ||\n          timestamp(s.cutoff) !== s.now - current.days * 86400000 ||\n          s.metrics.eligible > current.maxDelete || s.metrics.attempted >= current.maxDelete) throw Error('DELETE_BLOCKED');\n    }\n    const baseUrl = 'https://api.airtable.com/v0/' + current.base;\n    const reviewsUrl = baseUrl + '/' + current.table;\n    const auditUrl = baseUrl + '/' + current.auditTable;\n    const query = [['fields[]', 'processed_at']];\n    const urlWithQuery = (url, pairs) => url + '?' + pairs.map(([k, v]) => encodeURIComponent(k) + '=' + encodeURIComponent(v)).join('&');\n    if (s.action === 'schema') {\n      request = { method: 'GET', url: 'https://api.airtable.com/v0/meta/bases/' + current.base + '/tables' };\n    } else if (s.action === 'list' && s.schema_verified && !s.blocked) {\n      query.push(['pageSize', Math.min(current.pageSize, current.maxAnalyzed - s.metrics.analyzed)]);\n      if (s.offset) query.push(['offset', s.offset]);\n      request = { method: 'GET', url: urlWithQuery(reviewsUrl, query) };\n    } else if (s.action === 'recheck' && !current.dry_run && s.audit_id && !s.blocked) {\n      const candidate = s.candidates[s.index];\n      if (!candidate || !RECORD_ID.test(candidate.id)) throw Error('STATE');\n      query.push(['filterByFormula', \"RECORD_ID()='\" + candidate.id + \"'\"], ['maxRecords', 1], ['pageSize', 1]);\n      request = { method: 'GET', url: urlWithQuery(reviewsUrl, query) };\n    } else if (s.action === 'delete') {\n      request = { method: 'DELETE', url: reviewsUrl + '/' + s.candidates[s.index].id };\n      s.metrics.attempted++;\n    } else if (['audit_create', 'audit_update'].includes(s.action) && s.schema_verified && !s.audit_failed) {\n      if (s.action === 'audit_update' && !RECORD_ID.test(s.audit_id || '')) throw Error('STATE');\n      s.audit_expected = auditFields(s, s.final_audit ? status(s) : s.action === 'audit_create' ? 'planned' : 'running');\n      request = { method: s.action === 'audit_create' ? 'POST' : 'PATCH',\n        url: auditUrl + (s.action === 'audit_update' ? '/' + s.audit_id : ''),\n        body: { fields: s.audit_expected } };\n    } else if (!s.done) throw Error('STATE');\n  } catch {\n    failure(s, 'GUARD_BLOCKED'); s.blocked = true; finish(s);\n  }\n}\nreturn [{ json: { state: s, request, has_request: request !== null }, pairedItem: { item: 0 } }];\n"
+      },
+      "position": [
+        -280,
+        0
+      ],
+      "id": "62424e74-d952-50b7-a2f5-fcc464352f2f"
+    },
+    {
+      "name": "Ha operacao segura?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "pending",
+              "leftValue": "={{ $json.has_request }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "position": [
+        -40,
+        0
+      ],
+      "id": "ef23d99b-4c91-5f50-a5af-fad8d15129b6"
+    },
+    {
+      "name": "Airtable DEV operacao",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Fonte compartilhada incorporada ao JSON por scripts/build_retention_workflow.py.\n// Sem rede, dependencias, secrets, console ou texto de reviews.\nconst RECORD_ID = /^rec[A-Za-z0-9]{14}$/;\nconst METRICS = ['analyzed', 'eligible', 'deleted', 'failures', 'invalid_dates',\n  'recent', 'pages', 'attempted', 'skipped_changed', 'unknown_outcome'];\nconst AUDIT_TYPES = {\n  run_id: 'singleLineText', mode: 'singleLineText', status: 'singleLineText',\n  error_codes: 'singleLineText', retention_days: 'number', cutoff: 'dateTime',\n  started_at: 'dateTime', updated_at: 'dateTime',\n  ...Object.fromEntries(METRICS.map(key => [key, 'number'])),\n};\n\nfunction settings(env) {\n  const integer = (key, fallback, max) => {\n    const value = env[key] === undefined || env[key] === '' ? String(fallback) : env[key];\n    if (typeof value !== 'string' || !/^[1-9]\\d*$/.test(value) || Number(value) > max) throw Error('CONFIG');\n    return Number(value);\n  };\n  const dry = env.RETENTION_DRY_RUN === undefined || env.RETENTION_DRY_RUN === ''\n    ? 'true' : env.RETENTION_DRY_RUN;\n  if (!['true', 'false'].includes(dry) || env.RETENTION_ENV !== 'DEV') throw Error('CONFIG');\n  const base = env.RETENTION_DEV_BASE_ID;\n  const table = env.RETENTION_TABLE_ID;\n  const auditTable = env.RETENTION_AUDIT_TABLE_ID;\n  if (!/^app[A-Za-z0-9]{14}$/.test(base || '') || !/^tbl[A-Za-z0-9]{14}$/.test(table || '') ||\n      !/^tbl[A-Za-z0-9]{14}$/.test(auditTable || '') || table === auditTable) throw Error('CONFIG');\n  const protectedBases = (env.RETENTION_PROTECTED_BASE_IDS || '').split(',').filter(Boolean);\n  if (protectedBases.some(id => !/^app[A-Za-z0-9]{14}$/.test(id)) || protectedBases.includes(base)) throw Error('CONFIG');\n  if (dry === 'false' && (!protectedBases.length || env.RETENTION_CONFIRM_DEV_BASE_ID !== base ||\n      env.RETENTION_DELETE_CONFIRMATION !== 'DELETE_DEV_EXPIRED_REVIEWS')) throw Error('CONFIG');\n  return { environment: 'DEV', dry_run: dry === 'true', base, table, auditTable,\n    days: integer('RETENTION_DAYS', 30, 3650),\n    pageSize: integer('RETENTION_PAGE_SIZE', 100, 100),\n    maxPages: integer('RETENTION_MAX_PAGES', 10, 50),\n    maxAnalyzed: integer('RETENTION_MAX_ANALYZED', 1000, 5000),\n    maxDelete: integer('RETENTION_MAX_DELETE', 10, 100),\n    // Detecta mudancas da denylist/confirmacoes durante uma execucao.\n    protectedBases: [...protectedBases].sort(),\n    confirmation: env.RETENTION_CONFIRM_DEV_BASE_ID || '',\n    deleteConfirmation: env.RETENTION_DELETE_CONFIRMATION || '',\n  };\n}\n\nfunction timestamp(value) {\n  // Nao usa Date.parse sozinho: ele normaliza datas impossiveis como 30/02.\n  if (typeof value !== 'string') return null;\n  const match = value.match(/^(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}):(\\d{2}):(\\d{2})(?:\\.(\\d{1,3}))?(Z|[+-]\\d{2}:\\d{2})$/);\n  if (!match) return null;\n  const [, year, month, day, hour, minute, second, , zone] = match;\n  const y = Number(year), m = Number(month), d = Number(day);\n  const leap = y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0);\n  const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];\n  if (y < 1 || m < 1 || m > 12 || d < 1 || d > days[m - 1] ||\n      Number(hour) > 23 || Number(minute) > 59 || Number(second) > 59) return null;\n  if (zone !== 'Z' && (Number(zone.slice(1, 3)) > 14 || Number(zone.slice(4)) > 59 ||\n      (zone.slice(1, 3) === '14' && zone.slice(4) !== '00'))) return null;\n  const time = Date.parse(value);\n  return Number.isFinite(time) ? time : null;\n}\n\nfunction failure(s, code) {\n  s.metrics.failures++;\n  if (!s.codes.includes(code)) s.codes.push(code);\n}\n\nfunction status(s) {\n  if (s.blocked) return 'blocked';\n  if (s.metrics.failures) return 'partial';\n  return s.config.dry_run ? 'dry_run' : 'completed';\n}\n\nfunction auditFields(s, state) {\n  return { run_id: s.run_id, mode: s.config.dry_run ? 'DRY_RUN' : 'DELETE_DEV',\n    status: state, error_codes: s.codes.join(','), retention_days: s.config.days,\n    cutoff: s.cutoff, started_at: s.started_at, updated_at: new Date().toISOString(), ...s.metrics };\n}\n\nfunction auditConfirmed(body, s) {\n  if (!RECORD_ID.test(body?.id || '') || !body.fields || !s.audit_expected) return false;\n  return Object.entries(s.audit_expected).every(([name, value]) => {\n    // Airtable omite campos vazios na resposta.\n    if (name === 'error_codes' && value === '') return !body.fields[name];\n    if (AUDIT_TYPES[name] === 'dateTime') return timestamp(body.fields[name]) === timestamp(value);\n    return body.fields[name] === value;\n  });\n}\n\nfunction finish(s) { s.done = true; s.action = null; return s; }\n\nfunction auditOrFinish(s) {\n  if (!s.schema_verified || s.audit_failed) return finish(s);\n  s.action = s.audit_id ? 'audit_update' : 'audit_create';\n  s.final_audit = true;\n  return s;\n}\n\nfunction block(s, code) {\n  failure(s, code); s.blocked = true;\n  return auditOrFinish(s);\n}\n\nfunction nextCandidate(s) {\n  s.recheck = null;\n  if (s.blocked || s.index >= s.candidates.length) return auditOrFinish(s);\n  s.action = 'recheck';\n  return s;\n}\n\nfunction checkSchema(body, config) {\n  if (!body || !Array.isArray(body.tables)) return false;\n  const reviews = body.tables.find(table => table.id === config.table);\n  const audit = body.tables.find(table => table.id === config.auditTable);\n  if (reviews?.name !== 'Reviews' || audit?.name !== 'RetentionAudit') return false;\n  if (!Array.isArray(reviews.fields) || !Array.isArray(audit.fields)) return false;\n  if (reviews.fields.filter(field => field.name === 'processed_at' && field.type === 'dateTime').length !== 1) return false;\n  return Object.entries(AUDIT_TYPES).every(([name, type]) =>\n    audit.fields.some(field => field.name === name && field.type === type));\n}\n\n// Stub incorporado SOMENTE na demonstracao: nenhuma rede, escrita ou exclusao.\nconst input = $input.first().json;\nconst s = input.state;\nconst date = days => new Date(s.now - days * 86400000).toISOString();\nconst rec = (number, processed_at) => ({ id: 'rec' + String(number).padStart(14, '0'),\n  fields: processed_at === null ? {} : { processed_at } });\nlet body;\nlet statusCode = 200;\nif (s.action === 'schema') {\n  body = { tables: [\n    { id: s.config.table, name: 'Reviews', fields: [{ name: 'processed_at', type: 'dateTime' }] },\n    { id: s.config.auditTable, name: 'RetentionAudit',\n      fields: Object.entries(AUDIT_TYPES).map(([name, type]) => ({ name, type })) },\n  ] };\n} else if (s.action === 'list') {\n  const pages = [\n    { records: [rec(1, date(60)), rec(2, date(45))], offset: 'demo-page-2' },\n    { records: [rec(3, date(1)), rec(4, s.cutoff)], offset: 'demo-page-3' },\n    { records: [rec(5, '2026-02-30T00:00:00Z'), rec(6, null)] },\n  ];\n  body = pages[s.metrics.pages];\n} else if (s.action === 'audit_create' || s.action === 'audit_update') {\n  body = { id: 'rec00000000000999', fields: input.request.body.fields };\n} else {\n  // Mesmo uma mudanca acidental de modo nao habilita DELETE neste stub.\n  statusCode = 405; body = { error: 'DEMO_READ_ONLY' };\n}\nreturn [{ json: { statusCode, body }, pairedItem: { item: 0 } }];\n"
+      },
+      "position": [
+        200,
+        -160
+      ],
+      "id": "0a72099a-9b4a-562b-a55e-09672b9f56f8"
+    },
+    {
+      "name": "Receber resposta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const previous = $('Validar operacao DEV').item.json;\nreturn [{ json: { state: previous.state, response: $input.first().json }, pairedItem: { item: 0 } }];\n"
+      },
+      "position": [
+        440,
+        -160
+      ],
+      "id": "f227981e-f511-50ac-a07c-9a9e4ca25d6f"
+    },
+    {
+      "name": "Resumo sem PII",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Fonte compartilhada incorporada ao JSON por scripts/build_retention_workflow.py.\n// Sem rede, dependencias, secrets, console ou texto de reviews.\nconst RECORD_ID = /^rec[A-Za-z0-9]{14}$/;\nconst METRICS = ['analyzed', 'eligible', 'deleted', 'failures', 'invalid_dates',\n  'recent', 'pages', 'attempted', 'skipped_changed', 'unknown_outcome'];\nconst AUDIT_TYPES = {\n  run_id: 'singleLineText', mode: 'singleLineText', status: 'singleLineText',\n  error_codes: 'singleLineText', retention_days: 'number', cutoff: 'dateTime',\n  started_at: 'dateTime', updated_at: 'dateTime',\n  ...Object.fromEntries(METRICS.map(key => [key, 'number'])),\n};\n\nfunction settings(env) {\n  const integer = (key, fallback, max) => {\n    const value = env[key] === undefined || env[key] === '' ? String(fallback) : env[key];\n    if (typeof value !== 'string' || !/^[1-9]\\d*$/.test(value) || Number(value) > max) throw Error('CONFIG');\n    return Number(value);\n  };\n  const dry = env.RETENTION_DRY_RUN === undefined || env.RETENTION_DRY_RUN === ''\n    ? 'true' : env.RETENTION_DRY_RUN;\n  if (!['true', 'false'].includes(dry) || env.RETENTION_ENV !== 'DEV') throw Error('CONFIG');\n  const base = env.RETENTION_DEV_BASE_ID;\n  const table = env.RETENTION_TABLE_ID;\n  const auditTable = env.RETENTION_AUDIT_TABLE_ID;\n  if (!/^app[A-Za-z0-9]{14}$/.test(base || '') || !/^tbl[A-Za-z0-9]{14}$/.test(table || '') ||\n      !/^tbl[A-Za-z0-9]{14}$/.test(auditTable || '') || table === auditTable) throw Error('CONFIG');\n  const protectedBases = (env.RETENTION_PROTECTED_BASE_IDS || '').split(',').filter(Boolean);\n  if (protectedBases.some(id => !/^app[A-Za-z0-9]{14}$/.test(id)) || protectedBases.includes(base)) throw Error('CONFIG');\n  if (dry === 'false' && (!protectedBases.length || env.RETENTION_CONFIRM_DEV_BASE_ID !== base ||\n      env.RETENTION_DELETE_CONFIRMATION !== 'DELETE_DEV_EXPIRED_REVIEWS')) throw Error('CONFIG');\n  return { environment: 'DEV', dry_run: dry === 'true', base, table, auditTable,\n    days: integer('RETENTION_DAYS', 30, 3650),\n    pageSize: integer('RETENTION_PAGE_SIZE', 100, 100),\n    maxPages: integer('RETENTION_MAX_PAGES', 10, 50),\n    maxAnalyzed: integer('RETENTION_MAX_ANALYZED', 1000, 5000),\n    maxDelete: integer('RETENTION_MAX_DELETE', 10, 100),\n    // Detecta mudancas da denylist/confirmacoes durante uma execucao.\n    protectedBases: [...protectedBases].sort(),\n    confirmation: env.RETENTION_CONFIRM_DEV_BASE_ID || '',\n    deleteConfirmation: env.RETENTION_DELETE_CONFIRMATION || '',\n  };\n}\n\nfunction timestamp(value) {\n  // Nao usa Date.parse sozinho: ele normaliza datas impossiveis como 30/02.\n  if (typeof value !== 'string') return null;\n  const match = value.match(/^(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}):(\\d{2}):(\\d{2})(?:\\.(\\d{1,3}))?(Z|[+-]\\d{2}:\\d{2})$/);\n  if (!match) return null;\n  const [, year, month, day, hour, minute, second, , zone] = match;\n  const y = Number(year), m = Number(month), d = Number(day);\n  const leap = y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0);\n  const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];\n  if (y < 1 || m < 1 || m > 12 || d < 1 || d > days[m - 1] ||\n      Number(hour) > 23 || Number(minute) > 59 || Number(second) > 59) return null;\n  if (zone !== 'Z' && (Number(zone.slice(1, 3)) > 14 || Number(zone.slice(4)) > 59 ||\n      (zone.slice(1, 3) === '14' && zone.slice(4) !== '00'))) return null;\n  const time = Date.parse(value);\n  return Number.isFinite(time) ? time : null;\n}\n\nfunction failure(s, code) {\n  s.metrics.failures++;\n  if (!s.codes.includes(code)) s.codes.push(code);\n}\n\nfunction status(s) {\n  if (s.blocked) return 'blocked';\n  if (s.metrics.failures) return 'partial';\n  return s.config.dry_run ? 'dry_run' : 'completed';\n}\n\nfunction auditFields(s, state) {\n  return { run_id: s.run_id, mode: s.config.dry_run ? 'DRY_RUN' : 'DELETE_DEV',\n    status: state, error_codes: s.codes.join(','), retention_days: s.config.days,\n    cutoff: s.cutoff, started_at: s.started_at, updated_at: new Date().toISOString(), ...s.metrics };\n}\n\nfunction auditConfirmed(body, s) {\n  if (!RECORD_ID.test(body?.id || '') || !body.fields || !s.audit_expected) return false;\n  return Object.entries(s.audit_expected).every(([name, value]) => {\n    // Airtable omite campos vazios na resposta.\n    if (name === 'error_codes' && value === '') return !body.fields[name];\n    if (AUDIT_TYPES[name] === 'dateTime') return timestamp(body.fields[name]) === timestamp(value);\n    return body.fields[name] === value;\n  });\n}\n\nfunction finish(s) { s.done = true; s.action = null; return s; }\n\nfunction auditOrFinish(s) {\n  if (!s.schema_verified || s.audit_failed) return finish(s);\n  s.action = s.audit_id ? 'audit_update' : 'audit_create';\n  s.final_audit = true;\n  return s;\n}\n\nfunction block(s, code) {\n  failure(s, code); s.blocked = true;\n  return auditOrFinish(s);\n}\n\nfunction nextCandidate(s) {\n  s.recheck = null;\n  if (s.blocked || s.index >= s.candidates.length) return auditOrFinish(s);\n  s.action = 'recheck';\n  return s;\n}\n\nfunction checkSchema(body, config) {\n  if (!body || !Array.isArray(body.tables)) return false;\n  const reviews = body.tables.find(table => table.id === config.table);\n  const audit = body.tables.find(table => table.id === config.auditTable);\n  if (reviews?.name !== 'Reviews' || audit?.name !== 'RetentionAudit') return false;\n  if (!Array.isArray(reviews.fields) || !Array.isArray(audit.fields)) return false;\n  if (reviews.fields.filter(field => field.name === 'processed_at' && field.type === 'dateTime').length !== 1) return false;\n  return Object.entries(AUDIT_TYPES).every(([name, type]) =>\n    audit.fields.some(field => field.name === name && field.type === type));\n}\n\nconst s = $input.first().json.state;\nreturn [{ json: {\n  run_id: s.run_id, mode: s.config?.dry_run === false ? 'DELETE_DEV' : 'DRY_RUN',\n  status: s.config ? status(s) : 'blocked', started_at: s.started_at, finished_at: new Date().toISOString(),\n  retention_days: s.config?.days ?? null, cutoff: s.cutoff ?? null,\n  ...s.metrics, error_codes: s.codes, scan_complete: s.scan_complete,\n  audit_persisted: !!s.audit_id, audit_finalized: s.audit_finalized,\n  preview: s.config?.dry_run ? s.candidates.slice(0, s.config.maxDelete).map(c => ({ record_id: c.id, processed_at: c.processed_at })) : [],\n  preview_truncated: s.metrics.eligible > (s.config?.maxDelete ?? 0)\n} }];\n"
+      },
+      "position": [
+        200,
+        120
+      ],
+      "id": "59914b7c-8e4d-5e59-ae2d-ff3dc0b9dc13"
+    }
+  ],
+  "connections": {
+    "Agenda de retencao": {
+      "main": [
+        [
+          {
+            "node": "Motor de retencao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Motor de retencao": {
+      "main": [
+        [
+          {
+            "node": "Limitar taxa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limitar taxa": {
+      "main": [
+        [
+          {
+            "node": "Validar operacao DEV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar operacao DEV": {
+      "main": [
+        [
+          {
+            "node": "Ha operacao segura?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ha operacao segura?": {
+      "main": [
+        [
+          {
+            "node": "Airtable DEV operacao",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Resumo sem PII",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Airtable DEV operacao": {
+      "main": [
+        [
+          {
+            "node": "Receber resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Receber resposta": {
+      "main": [
+        [
+          {
+            "node": "Motor de retencao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo",
+    "executionTimeout": 900,
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": false,
+    "saveExecutionProgress": false
+  },
+  "tags": []
+}

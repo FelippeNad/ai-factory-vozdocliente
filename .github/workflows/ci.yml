@@ -39,3 +39,9 @@ jobs:
 
       - name: Test exported PII code (offline)
         run: node tests/test_pii_sanitization.cjs
+
+      - name: Check retention workflow exports
+        run: python scripts/build_retention_workflow.py --check
+
+      - name: Test retention with synthetic Airtable responses (offline)
+        run: node tests/test_retention.cjs

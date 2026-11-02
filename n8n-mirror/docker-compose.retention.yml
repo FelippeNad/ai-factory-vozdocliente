@@ -1,0 +1,47 @@
+# Instancia DEV independente, opt-in: porta e volume separados da classificacao.
+# docker compose -p vozdocliente-retencao --env-file ../.env.example -f docker-compose.retention.yml config
+# Nao inicia nem ativa workflows por si so. Nao altera a configuracao do Railway.
+services:
+  n8n:
+    image: n8nio/n8n:2.28.7
+    container_name: vozdocliente-retencao-dev
+    ports:
+      - "127.0.0.1:5680:5678"
+    environment:
+      N8N_HOST: localhost
+      N8N_PORT: "5678"
+      N8N_PROTOCOL: http
+      WEBHOOK_URL: http://localhost:5680/
+      GENERIC_TIMEZONE: America/Sao_Paulo
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_PERSONALIZATION_ENABLED: "false"
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
+      RETENTION_ENV: ${RETENTION_ENV:-}
+      RETENTION_DRY_RUN: ${RETENTION_DRY_RUN:-true}
+      RETENTION_DAYS: ${RETENTION_DAYS:-30}
+      RETENTION_DEV_BASE_ID: ${RETENTION_DEV_BASE_ID:-}
+      RETENTION_TABLE_ID: ${RETENTION_TABLE_ID:-}
+      RETENTION_AUDIT_TABLE_ID: ${RETENTION_AUDIT_TABLE_ID:-}
+      RETENTION_PROTECTED_BASE_IDS: ${RETENTION_PROTECTED_BASE_IDS:-}
+      RETENTION_CONFIRM_DEV_BASE_ID: ${RETENTION_CONFIRM_DEV_BASE_ID:-}
+      RETENTION_DELETE_CONFIRMATION: ${RETENTION_DELETE_CONFIRMATION:-}
+      RETENTION_PAGE_SIZE: ${RETENTION_PAGE_SIZE:-100}
+      RETENTION_MAX_PAGES: ${RETENTION_MAX_PAGES:-10}
+      RETENTION_MAX_ANALYZED: ${RETENTION_MAX_ANALYZED:-1000}
+      RETENTION_MAX_DELETE: ${RETENTION_MAX_DELETE:-10}
+      EXECUTIONS_DATA_SAVE_ON_SUCCESS: none
+      EXECUTIONS_DATA_SAVE_ON_ERROR: none
+      EXECUTIONS_DATA_SAVE_ON_PROGRESS: "false"
+      EXECUTIONS_DATA_SAVE_MANUAL_EXECUTIONS: "false"
+      EXECUTIONS_DATA_PRUNE: "true"
+      EXECUTIONS_DATA_MAX_AGE: "168"
+      EXECUTIONS_DATA_PRUNE_MAX_COUNT: "1000"
+      EXECUTIONS_DATA_HARD_DELETE_BUFFER: "1"
+      EXECUTIONS_DATA_PRUNE_SOFT_DELETE_INTERVAL: "60"
+      EXECUTIONS_DATA_PRUNE_HARD_DELETE_INTERVAL: "15"
+      N8N_LOG_LEVEL: warn
+      N8N_CONCURRENCY_PRODUCTION_LIMIT: "1"
+    volumes:
+      - retention_data:/home/node/.n8n
+volumes:
+  retention_data:
