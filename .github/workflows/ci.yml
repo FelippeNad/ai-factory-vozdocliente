@@ -23,8 +23,19 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
       - name: Validate workflow structure
         run: python tests/validate_workflows.py
 
       - name: Test routing logic
         run: python tests/test_routing_logic.py
+
+      - name: Test security and classification invariants
+        run: python -m unittest discover -s tests -v
+
+      - name: Test exported PII code (offline)
+        run: node tests/test_pii_sanitization.cjs

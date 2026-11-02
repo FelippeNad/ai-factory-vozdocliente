@@ -11,11 +11,12 @@ Automatizar o processamento de avaliações recebidas de diferentes canais.
 Cada avaliação é:
 
 1. recebida por webhook;
-2. classificada por um LLM;
-3. validada e normalizada;
-4. verificada contra registros existentes;
-5. persistida no Airtable;
-6. encaminhada ao Slack quando possui sentimento negativo.
+2. sanitizada para reduzir PII antes da classificação (v4 da Etapa 2);
+3. classificada por um LLM usando exclusivamente o campo sanitizado;
+4. validada e normalizada;
+5. verificada contra registros existentes;
+6. persistida no Airtable;
+7. encaminhada ao Slack quando possui sentimento negativo.
 
 O princípio funcional do sistema é:
 
@@ -27,6 +28,8 @@ O princípio funcional do sistema é:
 Review
   ↓
 Webhook n8n
+  ↓
+Sanitizar PII (v4)
   ↓
 LLM
   ↓
@@ -146,8 +149,10 @@ fluxo encerrado
 Isso evita:
 
 - registros duplicados;
-- classificações repetidas;
 - alertas duplicados no Slack.
+
+A busca continua depois do LLM, portanto duplicatas ainda podem gerar chamadas
+de classificação. Busca e criação não são uma operação atômica.
 
 ## Validação da saída do LLM
 
@@ -172,11 +177,17 @@ As versões exportadas do workflow n8n estão em:
 n8n-mirror/workflows/
 ```
 
-Versão atual:
+Versão candidata da Etapa 2 (inativa, sem deploy):
 
 ```text
-vozdocliente-router-v3.json
+vozdocliente-router-v4.json
 ```
+
+A v3 permanece como referência sem modificações. A sanitização obrigatória antes
+do LLM e os riscos de Airtable, Slack, logs e histórico estão documentados em
+[Etapa 2 — sanitização de PII](docs/etapa-2-sanitizacao-pii.md). Regex não garante
+anonimização nem conformidade integral com a LGPD. O Airtable ainda recebe dados
+originais; o Slack da v4 recebe apenas tema, nota e instrução fixa de tratativa.
 
 As credenciais não são armazenadas diretamente no JSON exportado. Cada ambiente mantém suas próprias credenciais.
 
@@ -193,11 +204,17 @@ Os testes automatizados podem ser executados sem acessar APIs externas:
 ```bash
 python tests/validate_workflows.py
 python tests/test_routing_logic.py
+python -m unittest discover -s tests -v
+node tests/test_pii_sanitization.cjs
 ```
 
 `validate_workflows.py` verifica a estrutura dos workflows e suas conexões.
 
 `test_routing_logic.py` utiliza um LLM mockado para validar classificação e lógica de roteamento.
+
+Os novos testes executam o JavaScript real da v4, validam ausência de fallback e
+de caminhos que contornem a sanitização, e preservação das categorias com dados
+sintéticos. Requerem Python 3.12+ e Node.js 22+, sem dependências adicionais.
 
 ## Smoke tests de produção
 
@@ -281,10 +298,15 @@ ai-factory-vozdocliente/
 │       ├── vozdocliente-router-v0.json
 │       ├── vozdocliente-router-v1.json
 │       ├── vozdocliente-router-v2.json
-│       └── vozdocliente-router-v3.json
+│       ├── vozdocliente-router-v3.json
+│       └── vozdocliente-router-v4.json
 ├── tests/
 │   ├── validate_workflows.py
-│   └── test_routing_logic.py
+│   ├── test_routing_logic.py
+│   ├── test_pii_sanitization.cjs
+│   ├── test_pii_classification.py
+│   ├── test_workflow_security.py
+│   └── fixtures/pii_semantic_cases.json
 ├── workflows/
 │   └── vozdocliente-make-blueprint.json
 ├── Dockerfile

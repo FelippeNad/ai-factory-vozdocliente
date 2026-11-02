@@ -1,5 +1,18 @@
 # n8n-mirror — VozDoCliente Review Router
 
+## Etapa 2: v4 candidata
+
+`workflows/vozdocliente-router-v4.json` adiciona `Sanitizar PII` antes do LLM e
+permanece **inativa**, sem deploy. A v3 foi preservada. O LLM recebe exclusivamente
+o campo sanitizado, sem fallback. Slack recebe apenas tema e nota; Airtable mantém
+os dados originais para tratativa, com risco residual documentado.
+
+Consulte [funcionamento, limitações, testes e evidências da Etapa 2](../docs/etapa-2-sanitizacao-pii.md).
+Para validar esta etapa, use os testes offline. As instruções históricas abaixo
+referem-se à v0 e envolvem APIs reais; não são necessárias para validar a v4.
+
+## Referência histórica do espelho inicial
+
 Espelho **rodável** do cenário Make.com. O Make não roda local, então pra vocês testarem o fluxo de verdade eu refiz os mesmos passos no n8n (self-host via Docker). É o mesmo pipeline:
 
 ```

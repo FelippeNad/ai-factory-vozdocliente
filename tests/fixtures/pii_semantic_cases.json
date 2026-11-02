@@ -1,0 +1,38 @@
+[
+  {
+    "name": "entrega positiva",
+    "original": "Entrega chegou antes do prazo e recomendo! Contato: teste@example.invalid, CPF 000.000.000-00.",
+    "sanitized": "Entrega chegou antes do prazo e recomendo! Contato: [EMAIL], CPF [CPF].",
+    "expected": {"sentiment": "positivo", "theme": "entrega"}
+  },
+  {
+    "name": "produto negativo",
+    "original": "Produto quebrado, quero dinheiro de volta. CNPJ 00.000.000/0000-00.",
+    "sanitized": "Produto quebrado, quero dinheiro de volta. CNPJ [CNPJ].",
+    "expected": {"sentiment": "negativo", "theme": "produto"}
+  },
+  {
+    "name": "atendimento negativo",
+    "original": "O atendente foi rispido, pessimo SAC. Telefone +55 (00) 90000-0000.",
+    "sanitized": "O atendente foi rispido, pessimo SAC. Telefone [TELEFONE].",
+    "expected": {"sentiment": "negativo", "theme": "atendimento"}
+  },
+  {
+    "name": "preco negativo",
+    "original": "O valor cobrado e absurdo: R$ 29,90. Perfil https://example.invalid/cliente.",
+    "sanitized": "O valor cobrado e absurdo: R$ 29,90. Perfil [URL].",
+    "expected": {"sentiment": "negativo", "theme": "preco"}
+  },
+  {
+    "name": "app negativo",
+    "original": "O app trava no login. CEP 00000-000, email teste@example.invalid.",
+    "sanitized": "O app trava no login. CEP [CEP], email [EMAIL].",
+    "expected": {"sentiment": "negativo", "theme": "app_bug"}
+  },
+  {
+    "name": "produto neutro",
+    "original": "O produto e ok. Nota 3/5. Cliente em www.example.invalid/perfil.",
+    "sanitized": "O produto e ok. Nota 3/5. Cliente em [URL].",
+    "expected": {"sentiment": "neutro", "theme": "produto"}
+  }
+]

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Validador estrutural dos dois workflows do VozDoCliente Review Router.
+Validador estrutural do Make e dos workflows n8n v3/v4.
 
 NAO chama API nenhuma e NAO sobe o n8n. So carrega os JSONs e checa estrutura:
   - Make blueprint: tem `name` + `flow[]` com >= 5 modulos (contando rotas aninhadas)
@@ -15,7 +15,8 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MAKE_PATH = os.path.join(ROOT, "workflows", "vozdocliente-make-blueprint.json")
-N8N_PATH = os.path.join(ROOT, "n8n-mirror", "workflows", "vozdocliente-router-v3.json")
+N8N_PATHS = [os.path.join(ROOT, "n8n-mirror", "workflows", f"vozdocliente-router-v{version}.json")
+             for version in (3, 4)]
 
 failures = []
 
@@ -56,9 +57,83 @@ def validate_make():
     check("Make: tem modulo Airtable", "airtable" in flat.lower())
 
 
-def validate_n8n():
-    print("\n=== n8n mirror ===")
-    with open(N8N_PATH, encoding="utf-8") as f:
+def edges(wf):
+    """Considera todos os tipos e ramos de conexao, inclusive rotas de erro."""
+    for src, payload in wf.get("connections", {}).items():
+        for branches in payload.values():
+            for branch in branches:
+                for link in branch:
+                    yield src, link["node"]
+
+
+def reachable(wf, start, target, blocked=None):
+    graph = {}
+    for src, dst in edges(wf):
+        graph.setdefault(src, []).append(dst)
+    pending, seen = [start], set()
+    while pending:
+        node = pending.pop()
+        if node == blocked or node in seen:
+            continue
+        if node == target:
+            return True
+        seen.add(node)
+        pending.extend(graph.get(node, []))
+    return False
+
+
+def pii_structure_errors(wf):
+    """Invariantes da v4; retorna erros para permitir testes de mutacao do grafo."""
+    errors = []
+    nodes = {node["name"]: node for node in wf["nodes"]}
+    required = {"Webhook Review", "Sanitizar PII", "LLM PROD"}
+    if not required <= nodes.keys():
+        return ["nodes obrigatorios de PII ausentes"]
+    sanitizer = nodes["Sanitizar PII"]
+    llm = nodes["LLM PROD"]
+    if sanitizer["type"] != "n8n-nodes-base.code" or sanitizer["typeVersion"] != 2:
+        errors.append("sanitizador deve usar Code v2")
+    if sanitizer["parameters"].get("mode") != "runOnceForAllItems":
+        errors.append("modo do sanitizador invalido")
+    all_edges = set(edges(wf))
+    if ("Webhook Review", "Sanitizar PII") not in all_edges or ("Sanitizar PII", "LLM PROD") not in all_edges:
+        errors.append("sequencia Webhook -> Sanitizar PII -> LLM ausente")
+    if not reachable(wf, "Webhook Review", "LLM PROD"):
+        errors.append("LLM nao e alcancavel pelo webhook")
+    if reachable(wf, "Webhook Review", "LLM PROD", blocked="Sanitizar PII"):
+        errors.append("caminho do webhook ao LLM sem sanitizacao")
+    if {src for src, dst in all_edges if dst == "LLM PROD"} != {"Sanitizar PII"}:
+        errors.append("LLM recebe conexoes de outra origem")
+    # Expressao permitida exata: nao aceita fallback, metadados ou referencia ao webhook.
+    content = "{{ JSON.stringify((() => { const text = $json.review_text_sanitized; if (typeof text !== 'string' || !text.trim()) { throw new Error('Texto sanitizado ausente ou invalido.'); } return text; })()) }}"
+    llm_body = llm["parameters"].get("jsonBody", "")
+    placeholder = '"__SANITIZED_CONTENT__"'
+    if llm_body.count(content) != 1:
+        errors.append("LLM deve usar exclusivamente o campo sanitizado com guarda obrigatoria")
+    else:
+        try:
+            request = json.loads(llm_body[1:].replace(content, placeholder))
+            if (request["messages"][1] != {"role": "user", "content": "__SANITIZED_CONTENT__"}
+                    or len(request["messages"]) != 2 or "{{" in json.dumps(request)):
+                errors.append("conteudo dinamico extra no request do LLM")
+        except (ValueError, KeyError, IndexError, TypeError):
+            errors.append("body do LLM invalido")
+    for name in required:
+        node = nodes[name]
+        if node.get("disabled") or node.get("continueOnFail") or node.get("onError", "stopWorkflow") != "stopWorkflow":
+            errors.append(f"{name} deve estar habilitado e interromper em caso de erro")
+    expected_settings = {"saveDataErrorExecution": "none", "saveDataSuccessExecution": "none",
+                         "saveManualExecutions": False, "saveExecutionProgress": False}
+    if any(wf.get("settings", {}).get(key) != value for key, value in expected_settings.items()):
+        errors.append("retencao de execucoes deve estar desabilitada na v4")
+    if wf.get("pinData") or wf.get("active") is not False:
+        errors.append("v4 deve estar inativa e sem dados fixados")
+    return errors
+
+
+def validate_n8n(workflow_path):
+    print(f"\n=== n8n mirror: {os.path.basename(workflow_path)} ===")
+    with open(workflow_path, encoding="utf-8") as f:
         wf = json.load(f)
     check("n8n: JSON parseia", True)
     nodes = wf.get("nodes")
@@ -68,19 +143,18 @@ def validate_n8n():
     check(f"n8n: tem >= 5 nodes (encontrados: {len(nodes or [])})", len(nodes or []) >= 5)
 
     node_names = {nd.get("name") for nd in (nodes or [])}
+    check("n8n: nomes e ids de nodes unicos", len(node_names) == len(nodes)
+          and len({nd["id"] for nd in nodes}) == len(nodes))
     # toda origem e todo destino referenciado em connections deve existir em nodes
     ref_ok = True
     bad_refs = []
-    for src, payload in conns.items():
+    for src, tgt in edges(wf):
         if src not in node_names:
             ref_ok = False
             bad_refs.append(f"origem '{src}'")
-        for branch in payload.get("main", []):
-            for link in branch:
-                tgt = link.get("node")
-                if tgt not in node_names:
-                    ref_ok = False
-                    bad_refs.append(f"destino '{tgt}'")
+        if tgt not in node_names:
+            ref_ok = False
+            bad_refs.append(f"destino '{tgt}'")
     check(
         "n8n: todas as conexoes referenciam nodes existentes"
         + (f" (invalidos: {bad_refs})" if bad_refs else ""),
@@ -92,12 +166,17 @@ def validate_n8n():
     check("n8n: tem node IF (roteamento do negativo)", "n8n-nodes-base.if" in types)
     # webhook deve ser ponto de entrada (origem de conexao)
     check("n8n: 'Webhook Review' inicia o fluxo", "Webhook Review" in conns)
+    if workflow_path.endswith("v4.json"):
+        errors = pii_structure_errors(wf)
+        check("n8n v4: sanitizacao obrigatoria, LLM sem fallback e retencao minima"
+              + (f" ({errors})" if errors else ""), not errors)
 
 
 if __name__ == "__main__":
     try:
         validate_make()
-        validate_n8n()
+        for workflow_path in N8N_PATHS:
+            validate_n8n(workflow_path)
     except Exception as exc:  # pragma: no cover
         print(f"\n[ERRO FATAL] {type(exc).__name__}: {exc}")
         sys.exit(2)

@@ -2,6 +2,18 @@
 
 Todas as mudanças relevantes do projeto são registradas neste arquivo.
 
+## [Não lançado] — Etapa 2
+
+- Adicionada v4 inativa com node Code `Sanitizar PII` antes do LLM, máscaras de
+  CPF/CNPJ/e-mail/telefone/CEP/URLs e campo sanitizado obrigatório sem fallback.
+- Preservadas v3, credenciais, versões dos nodes e persistência original no Airtable.
+- Reduzido o alerta Slack a tema/nota; erros customizados não incluem conteúdo
+  recebido; salvamento de execuções desabilitado nas configurações da v4.
+- Adicionados testes do JavaScript exportado, bypass no grafo, entradas inválidas,
+  limites de detecção e preservação de classificação com fixtures sintéticas; CI atualizado.
+- Documentados riscos separados por destino e evidências ainda pendentes em
+  `docs/etapa-2-sanitizacao-pii.md`. Sem deploy nem declaração de conformidade LGPD.
+
 ## [1.0.0] - 2026-10-05
 
 ### Adicionado
