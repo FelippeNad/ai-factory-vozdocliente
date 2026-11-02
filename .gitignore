@@ -33,3 +33,6 @@ npm-debug.log*
 # Backups locais da Sther
 *.bkp
 backup_*/
+
+# Security scan reports
+gitleaks-report.json

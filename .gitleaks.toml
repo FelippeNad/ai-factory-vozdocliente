@@ -1,0 +1,11 @@
+title = "VozDoCliente - Gitleaks"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Exemplo fictício de Airtable no histórico"
+commits = ["c56be04a404f7e43467d36480e7fa8e2f9899829"]
+paths = ['''^\.env\.example$''']
+regexTarget = "match"
+regexes = ['''appXXXXXXXXXXXXXX''']
