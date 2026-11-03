@@ -1,5 +1,11 @@
 # n8n-mirror — VozDoCliente Review Router
 
+LGPD e operação segura: consulte o [mapa de dados](../docs/lgpd/mapa-dados-pessoais.md),
+[transferências internacionais](../docs/lgpd/transferencia-internacional.md),
+[rotação de credenciais](../docs/security/rotacao-credenciais.md) e
+[roteiro da apresentação](../docs/lgpd/roteiro-evidencias.md). São documentação
+e exercício offline; não ativam workflows nem alteram credenciais ou instâncias.
+
 ## Etapa 2: v4 candidata
 
 Retenção e exclusão agora têm workflows **independentes** e inativos:

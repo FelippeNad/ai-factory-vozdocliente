@@ -1,5 +1,11 @@
 # Teste de Rollback — VozDoCliente
 
+Relato histórico de rollback de deployment. Ele não comprova restauração de dados
+excluídos, recuperação criptográfica ou validade de token revogado. A Etapa 2
+documenta essas diferenças em [rotação de credenciais](security/rotacao-credenciais.md)
+e [retenção/exclusão](etapa-2-retencao-exclusao.md); nenhum rollback foi executado
+novamente nesta revisão.
+
 ## Objetivo
 
 Validar que uma versão anterior conhecida do ambiente de produção pode ser restaurada e permanecer funcional em caso de falha em um novo deployment.

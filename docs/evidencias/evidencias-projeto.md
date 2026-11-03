@@ -2,6 +2,20 @@
 
 Este documento reúne evidências visuais e operacionais da evolução do protótipo VozDoCliente, cobrindo desenvolvimento local, integração com LLM, persistência, alertas, smoke tests, CI/CD, deploy público e rollback.
 
+## Complemento da Etapa 2
+
+As seções numeradas abaixo são registros históricos da Etapa 1, não comprovação
+do estado atual. O [roteiro da Etapa 2](../lgpd/roteiro-evidencias.md) descreve o
+alcance das capturas [sanitização](etapa2-sanitizacao-pii-n8n.png) e
+[retenção com stub](etapa2-retencao-dry-run.png), já existentes no baseline.
+
+O novo [relatório da rotação simulada](../security/evidencias/rotacao-simulada.json)
+registra 38 cenários offline e pode ser verificado pelo script, conforme
+[procedimento](../security/rotacao-credenciais.md). Não comprova rotação real.
+O [checklist](../lgpd/checklist-etapa-2.md) separa implementação, validação,
+pendências e revisão jurídica. Nenhuma nova captura de produção ou rotação foi
+produzida nesta revisão; relatórios de scan antigos não são varreduras atuais.
+
 ## 1. Workflow n8n no ambiente de desenvolvimento
 
 A imagem abaixo mostra o fluxo principal executado no n8n durante o desenvolvimento local, com recebimento do review via webhook, classificação por LLM, tratamento dos dados, persistência no Airtable e roteamento condicional para o Slack.

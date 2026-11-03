@@ -109,6 +109,12 @@ Desvantagens:
 
 ## Referências
 
+Complementos da Etapa 2, sem alterar a decisão de stack:
+
+- [Mapa de dados pessoais e papéis a validar](../lgpd/mapa-dados-pessoais.md)
+- [Avaliação de transferências internacionais](../lgpd/transferencia-internacional.md)
+- [Checklist de implementação e validação](../lgpd/checklist-etapa-2.md)
+
 - `docs/auditoria-prototipo.md`
 - `docs/matriz-decisao-stack.md`
 - `n8n-mirror/workflows/`

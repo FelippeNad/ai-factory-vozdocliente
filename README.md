@@ -350,11 +350,37 @@ docs/adr/ADR-002-deploy-e-ambientes.md
 
 ## Segurança
 
+A documentação de LGPD da Etapa 2 distingue controles presentes no código,
+evidências offline e validações jurídicas/operacionais ainda pendentes:
+
+- [Mapa de dados pessoais](docs/lgpd/mapa-dados-pessoais.md): categorias,
+  operações, finalidade, hipóteses legais e papéis a validar.
+- [Transferência internacional](docs/lgpd/transferencia-internacional.md):
+  análise por fornecedor, LGPD/ANPD e dossiê contratual pendente.
+- [Rotação de credenciais](docs/security/rotacao-credenciais.md): procedimentos
+  por provedor, diferença entre tokens, DEK e `N8N_ENCRYPTION_KEY`, rollback e Git.
+- [Checklist da Etapa 2](docs/lgpd/checklist-etapa-2.md) e
+  [roteiro de evidências para apresentação](docs/lgpd/roteiro-evidencias.md).
+
+O exercício de rotação usa somente estados fictícios e não acessa provedores,
+cofres ou `.env` reais. Para verificar a evidência já gerada:
+
+```powershell
+python scripts/simular_rotacao_credenciais.py --verify docs/security/evidencias/rotacao-simulada.json
+```
+
+Foram aprovados 38 cenários simulados. Isso não comprova rotação real, criptografia
+n8n ou conformidade integral com a LGPD. Contratos, bases legais, regiões efetivas,
+titularidade corporativa e responsáveis nomeados continuam sujeitos à validação.
+O briefing fixa máximo de 90 dias para logs; os prazos demonstrativos de 30 dias
+das reviews e sete dias do histórico n8n têm escopos diferentes.
+
 Secrets e credenciais não devem ser armazenados no repositório.
 
 Arquivos `.env` são ignorados pelo Git e o projeto mantém apenas `.env.example`.
 
-Credenciais de desenvolvimento e produção são mantidas separadamente.
+A separação de credenciais DEV/PROD é prevista na arquitetura; sua aplicação,
+titularidade e escopos precisam ser confirmados nas contas, sem revelar valores.
 
 Exemplos de informações que não devem ser commitadas:
 

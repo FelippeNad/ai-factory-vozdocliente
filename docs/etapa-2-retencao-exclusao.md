@@ -1,5 +1,12 @@
 # Etapa 2 — retenção e exclusão periódica
 
+Complemento documental após `718ce4d`: [mapa e retenções por destino](lgpd/mapa-dados-pessoais.md),
+[checklist LGPD](lgpd/checklist-etapa-2.md), [procedimento de rotação](security/rotacao-credenciais.md)
+e [roteiro de evidências](lgpd/roteiro-evidencias.md). A captura agora versionada
+`evidencias/etapa2-retencao-dry-run.png` mostra o percurso com stub Code; não
+comprova DELETE ou auditoria em base real. O briefing limita logs a 90 dias,
+distinto dos prazos demonstrativos descritos abaixo e sujeito à verificação real.
+
 Implementado na branch `etapa-2`, a partir de `f66cb79`, sem alterações nas versões
 v3/v4 de classificação. Nenhuma exclusão real, chamada a APIs, alteração de
 credenciais, ativação, deploy ou commit foi realizado nesta implementação.

@@ -166,6 +166,12 @@ Descartado porque aumenta o risco de alterações experimentais afetarem o ambie
 
 ## Referências
 
+Complementos da Etapa 2, sem deploy ou mudança de ambientes nesta revisão:
+
+- [Rotação de credenciais, chave n8n e rollback](../security/rotacao-credenciais.md)
+- [Retenção DEV e histórico interno](../etapa-2-retencao-exclusao.md)
+- [Transferências e comprovação de regiões/contratos](../lgpd/transferencia-internacional.md)
+
 - `docs/auditoria-prototipo.md`
 - `docs/matriz-decisao-stack.md`
 - `docs/adr/ADR-001-stack.md`

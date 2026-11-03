@@ -26,7 +26,7 @@ Tabela: `Reviews`
 
 - **Sem unique constraint em `review_id`:** review reprocessado (reenvio da app store, duplo-submit do form) gera **linha duplicada**. Airtable não força unicidade — precisa checar no fluxo antes de gravar.
 - **Schema não substitui validação:** na v3/v4, `sentiment`/`theme` são normalizados e validados antes da persistência. Escritas por outros fluxos ainda precisam de controles próprios.
-- **`customer_name` e `review_text` carregam PII** e não têm marcação de sensibilidade, anonimização nem política de retenção. Pendência LGPD.
+- **`customer_name` e `review_text` carregam PII** sem anonimização comprovada. Há política demonstrativa de retenção DEV; aplicação produtiva, marcação de sensibilidade e prazos aprovados continuam pendentes. Ver [mapa LGPD](lgpd/mapa-dados-pessoais.md).
 - **Sem campo `cost_usd`** por execução — impossível auditar custo de LLM por review.
 - **Sem campo de status de tratativa** (ex.: `respondido`, `responsavel`, `respondido_em`) — o alerta vai pro Slack mas o ciclo de resposta não fecha dentro do Airtable. Bom candidato pra evolução (fechar o loop da missão "nenhuma reclamação sem resposta").
 

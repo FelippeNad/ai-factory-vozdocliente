@@ -1,5 +1,10 @@
 # Post-mortem — Persistência da chave de criptografia do n8n
 
+Este é um relato histórico da implantação inicial. O reset de armazenamento
+descrito abaixo não é um procedimento de rotação para uma instância com dados.
+Consulte [rotação, DEK, chave mestra e recuperação](security/rotacao-credenciais.md)
+antes de planejar mudanças; nenhuma alteração de chave foi feita nesta revisão.
+
 ## Resumo
 
 Durante a configuração do ambiente de produção do VozDoCliente no Railway, o serviço n8n apresentou falhas após reinicializações.

@@ -1,5 +1,12 @@
 # Etapa 2 — sanitização de PII antes do LLM
 
+Complemento documental após `718ce4d`: [mapa LGPD](lgpd/mapa-dados-pessoais.md),
+[transferências internacionais](lgpd/transferencia-internacional.md),
+[checklist](lgpd/checklist-etapa-2.md) e [roteiro de evidências](lgpd/roteiro-evidencias.md).
+A captura `evidencias/etapa2-sanitizacao-pii-n8n.png` agora está versionada e mostra
+o canvas/sanitizador, sem comprovar execução integral das APIs. As pendências
+descritas na implementação original abaixo precisam ser lidas com esse alcance.
+
 Implementação local na branch `etapa-2`, em 02/11/2026. A v3 foi analisada e
 preservada; a v4 é uma candidata **inativa**, sem deploy. Nenhuma API foi chamada,
 nenhuma credencial foi alterada e nenhum dado pessoal real foi usado nos testes.

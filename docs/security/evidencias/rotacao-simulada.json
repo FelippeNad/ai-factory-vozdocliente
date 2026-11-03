@@ -1,0 +1,265 @@
+{
+  "schema_version": 1,
+  "scope": "SIMULACAO_OFFLINE_DE_ESTADOS",
+  "executed_at_utc": "2026-11-03T00:01:19.797028+00:00",
+  "real_rotation": false,
+  "real_provider_validation": false,
+  "n8n_crypto_validated": false,
+  "network_calls": 0,
+  "simulator_sha256": "eacf5537b3d2f1eac60c1f1fd436990338991c2b96f50654a40883cc8921d4e5",
+  "artifacts_hash_algorithm": "SHA256_OF_CANONICAL_JSON_OR_JSON_ENCODED_LF_TEXT",
+  "artifacts_before": {
+    "n8n-mirror/workflows/vozdocliente-router-v3.json": "b99e13bedc9cfd0f0206269d55482815176d7586ad5f3b81556f2bd9eab5f816",
+    "n8n-mirror/workflows/vozdocliente-router-v4.json": "aa77b2e65f39c900fb75810338b9fff6ca6ac95b584d2beb0971dfcca690c3f6",
+    "n8n-mirror/workflows/vozdocliente-retencao-v1.json": "361b5349048cf55ec3ba872f85c997c40e6506ac41f9f5455ac18dfd2fe86086",
+    "n8n-mirror/workflows/vozdocliente-retencao-demo.json": "e0f6ce7119baf202a3f8982e1d931e857e394a0e33d565596a4f60e4991a5a35",
+    "n8n-mirror/docker-compose.yml": "00222b7cbd0c6ebcb0331562f281936ed21f04c2f9fb26d031b3e21097542f52",
+    "n8n-mirror/docker-compose.retention.yml": "e382cb715cb54599c49adcd872309a035e2118500a8cb510ba9b0d020f2ea2da",
+    "Dockerfile": "b80ca4298b17aa72e8a76b6ac436f6ca3e711262e59b3d6c5a975aea4c2d934d",
+    ".env.example": "5bad5d57fc3c0a43a06f71b841f7313b70ee96054a875cf919709120ac09c134"
+  },
+  "artifacts_after": {
+    "n8n-mirror/workflows/vozdocliente-router-v3.json": "b99e13bedc9cfd0f0206269d55482815176d7586ad5f3b81556f2bd9eab5f816",
+    "n8n-mirror/workflows/vozdocliente-router-v4.json": "aa77b2e65f39c900fb75810338b9fff6ca6ac95b584d2beb0971dfcca690c3f6",
+    "n8n-mirror/workflows/vozdocliente-retencao-v1.json": "361b5349048cf55ec3ba872f85c997c40e6506ac41f9f5455ac18dfd2fe86086",
+    "n8n-mirror/workflows/vozdocliente-retencao-demo.json": "e0f6ce7119baf202a3f8982e1d931e857e394a0e33d565596a4f60e4991a5a35",
+    "n8n-mirror/docker-compose.yml": "00222b7cbd0c6ebcb0331562f281936ed21f04c2f9fb26d031b3e21097542f52",
+    "n8n-mirror/docker-compose.retention.yml": "e382cb715cb54599c49adcd872309a035e2118500a8cb510ba9b0d020f2ea2da",
+    "Dockerfile": "b80ca4298b17aa72e8a76b6ac436f6ca3e711262e59b3d6c5a975aea4c2d934d",
+    ".env.example": "5bad5d57fc3c0a43a06f71b841f7313b70ee96054a875cf919709120ac09c134"
+  },
+  "artifacts_unchanged": true,
+  "scenarios": [
+    {
+      "scenario": "openai_mock:baseline",
+      "expected": true,
+      "observed": true,
+      "passed": true
+    },
+    {
+      "scenario": "openai_mock:replacement_invalid_rejected",
+      "expected": false,
+      "observed": false,
+      "passed": true
+    },
+    {
+      "scenario": "openai_mock:rollback_before_revocation",
+      "expected": true,
+      "observed": true,
+      "passed": true
+    },
+    {
+      "scenario": "openai_mock:replacement_validated",
+      "expected": true,
+      "observed": true,
+      "passed": true
+    },
+    {
+      "scenario": "openai_mock:dev_not_prod",
+      "expected": false,
+      "observed": false,
+      "passed": true
+    },
+    {
+      "scenario": "openai_mock:old_revoked",
+      "expected": false,
+      "observed": false,
+      "passed": true
+    },
+    {
+      "scenario": "openai_mock:new_remains_valid",
+      "expected": true,
+      "observed": true,
+      "passed": true
+    },
+    {
+      "scenario": "openai_mock:rollback_to_revoked_blocked",
+      "expected": false,
+      "observed": false,
+      "passed": true
+    },
+    {
+      "scenario": "airtable_mock:baseline",
+      "expected": true,
+      "observed": true,
+      "passed": true
+    },
+    {
+      "scenario": "airtable_mock:replacement_invalid_rejected",
+      "expected": false,
+      "observed": false,
+      "passed": true
+    },
+    {
+      "scenario": "airtable_mock:rollback_before_revocation",
+      "expected": true,
+      "observed": true,
+      "passed": true
+    },
+    {
+      "scenario": "airtable_mock:replacement_validated",
+      "expected": true,
+      "observed": true,
+      "passed": true
+    },
+    {
+      "scenario": "airtable_mock:dev_not_prod",
+      "expected": false,
+      "observed": false,
+      "passed": true
+    },
+    {
+      "scenario": "airtable_mock:old_revoked",
+      "expected": false,
+      "observed": false,
+      "passed": true
+    },
+    {
+      "scenario": "airtable_mock:new_remains_valid",
+      "expected": true,
+      "observed": true,
+      "passed": true
+    },
+    {
+      "scenario": "airtable_mock:rollback_to_revoked_blocked",
+      "expected": false,
+      "observed": false,
+      "passed": true
+    },
+    {
+      "scenario": "slack_mock:baseline",
+      "expected": true,
+      "observed": true,
+      "passed": true
+    },
+    {
+      "scenario": "slack_mock:replacement_invalid_rejected",
+      "expected": false,
+      "observed": false,
+      "passed": true
+    },
+    {
+      "scenario": "slack_mock:rollback_before_revocation",
+      "expected": true,
+      "observed": true,
+      "passed": true
+    },
+    {
+      "scenario": "slack_mock:replacement_validated",
+      "expected": true,
+      "observed": true,
+      "passed": true
+    },
+    {
+      "scenario": "slack_mock:dev_not_prod",
+      "expected": false,
+      "observed": false,
+      "passed": true
+    },
+    {
+      "scenario": "slack_mock:old_revoked",
+      "expected": false,
+      "observed": false,
+      "passed": true
+    },
+    {
+      "scenario": "slack_mock:new_remains_valid",
+      "expected": true,
+      "observed": true,
+      "passed": true
+    },
+    {
+      "scenario": "slack_mock:rollback_to_revoked_blocked",
+      "expected": false,
+      "observed": false,
+      "passed": true
+    },
+    {
+      "scenario": "railway_secret_mock:baseline",
+      "expected": true,
+      "observed": true,
+      "passed": true
+    },
+    {
+      "scenario": "railway_secret_mock:replacement_invalid_rejected",
+      "expected": false,
+      "observed": false,
+      "passed": true
+    },
+    {
+      "scenario": "railway_secret_mock:rollback_before_revocation",
+      "expected": true,
+      "observed": true,
+      "passed": true
+    },
+    {
+      "scenario": "railway_secret_mock:replacement_validated",
+      "expected": true,
+      "observed": true,
+      "passed": true
+    },
+    {
+      "scenario": "railway_secret_mock:dev_not_prod",
+      "expected": false,
+      "observed": false,
+      "passed": true
+    },
+    {
+      "scenario": "railway_secret_mock:old_revoked",
+      "expected": false,
+      "observed": false,
+      "passed": true
+    },
+    {
+      "scenario": "railway_secret_mock:new_remains_valid",
+      "expected": true,
+      "observed": true,
+      "passed": true
+    },
+    {
+      "scenario": "railway_secret_mock:rollback_to_revoked_blocked",
+      "expected": false,
+      "observed": false,
+      "passed": true
+    },
+    {
+      "scenario": "n8n_model:matching_key_and_snapshot",
+      "expected": true,
+      "observed": true,
+      "passed": true
+    },
+    {
+      "scenario": "n8n_model:blind_master_key_change_fails",
+      "expected": false,
+      "observed": false,
+      "passed": true
+    },
+    {
+      "scenario": "n8n_model:restoring_original_pair_recovers",
+      "expected": true,
+      "observed": true,
+      "passed": true
+    },
+    {
+      "scenario": "n8n_model:migrated_state_needs_matching_key",
+      "expected": true,
+      "observed": true,
+      "passed": true
+    },
+    {
+      "scenario": "n8n_model:mixed_old_key_new_state_fails",
+      "expected": false,
+      "observed": false,
+      "passed": true
+    },
+    {
+      "scenario": "slack_model:native_rotation_blocked_without_refresh",
+      "expected": false,
+      "observed": false,
+      "passed": true
+    }
+  ],
+  "passed": 38,
+  "failed": 0,
+  "report_sha256": "bbdcf6a1410b48f50aef04883921e73a5bf6b3f1b64ff4c4b3d3212c0771a50a"
+}

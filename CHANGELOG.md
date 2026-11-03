@@ -4,6 +4,17 @@ Todas as mudanças relevantes do projeto são registradas neste arquivo.
 
 ## [Não lançado] — Etapa 2
 
+- Adicionados mapa de dados pessoais, análise de transferências internacionais,
+  checklist de estados/pendências e roteiro de demonstração em `docs/lgpd/`.
+- Documentadas hipóteses legais e papéis sujeitos à validação, sem presumir
+  consentimento universal, contratos ou conformidade integral com a LGPD.
+- Adicionado procedimento de rotação por fornecedor, recuperação, tratamento de
+  exposição em Git e distinção entre token, DEK e chave mestra n8n.
+- Executado exercício offline com 38 cenários simulados e relatório verificável
+  por checksum e hashes dos artefatos; nenhuma credencial real foi rotacionada.
+- Atualizadas referências dos ADRs e documentos existentes. Workflows, Compose,
+  variáveis de exemplo e credenciais permanecem inalterados nesta continuação.
+
 - Adicionados workflows independentes e inativos de retenção DEV e demonstração
   offline sem HTTP, mantendo os arquivos v3/v4 de classificação intactos.
 - Política configurável (30 dias demonstrativos), Schedule Trigger diário,
