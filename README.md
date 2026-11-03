@@ -5,7 +5,7 @@ tema, com n8n, LLM, Airtable e Slack. A Etapa 2 adiciona controles de segurança
 privacidade. Esta entrega é preparada na branch local `etapa-2`, sem publicação,
 deploy, exclusão real ou rotação de credenciais.
 
-## Estado da entrega — 03/11/2026
+## Estado da entrega — 02/11/2026
 
 ### VALIDADO NO N8N
 
