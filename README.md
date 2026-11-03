@@ -2,8 +2,7 @@
 
 Projeto da disciplina AI Factory da PUCPR: triagem de avaliações por sentimento e
 tema, com n8n, LLM, Airtable e Slack. A Etapa 2 adiciona controles de segurança e
-privacidade. Esta entrega é preparada na branch local `etapa-2`, sem publicação,
-deploy, exclusão real ou rotação de credenciais.
+privacidade. A entrega da Etapa 2 está publicada na branch `etapa-2` do GitHub. A implementação foi preparada e validada sem novo deploy de produção, exclusão real de dados ou rotação de credenciais.
 
 ## Estado da entrega — 02/11/2026
 
@@ -45,11 +44,9 @@ recursos DEV. Não foram repetidas contra fornecedores nesta auditoria:
 - O [relatório visual de 23 eventos](docs/evidencias/router-observabilidade-simulacao.html)
   é **SIMULAÇÃO OFFLINE**. p50=5 ms, p95=31 ms e p99=31 ms descrevem somente o
   harness com mocks, N=3 execuções. **Não são métricas de produção ou do n8n.**
-- O deploy de produção está **indisponível após o período gratuito do Railway**,
-  conforme informado pelo responsável. URLs, smoke tests e capturas antigos são
-  históricos; não comprovam disponibilidade atual. Não acessar PROD nesta entrega.
-- Publicação depende da revisão de imagens históricas e da confirmação manual de
-  que Railway, webhooks e apps não farão autodeploy. Ver [auditoria da entrega](docs/entrega-etapa-2.md).
+- O serviço Railway possui disponibilidade temporária, condicionada ao período gratuito restante. Os smoke tests de produção apresentados são históricos e não comprovam disponibilidade contínua. A entrega da Etapa 2 foi validada localmente, sem necessidade de novo deploy de produção.
+- A branch `etapa-2` foi publicada em 02/11/2026, sem merge na `main` e sem comando de deploy. A captura original do Slack presente no histórico público do Git permanece pendente de remediação. A versão atual das capturas foi anonimizada.
+
 
 ## Workflows recomendados e referências
 
