@@ -1,16 +1,25 @@
 # Roteiro de demonstração e evidências — Etapa 2
 
-Revisão: 02/11/2026. Usar branch `etapa-2`, fixtures sintéticas e ambiente local.
+Revisão de preparação: 03/11/2026. Usar branch `etapa-2`, fixtures sintéticas e ambiente local.
 Não acessar serviços de produção, revelar tokens, habilitar limpeza ou fazer deploy
 para apresentar esta entrega. A ordem abaixo é uma sugestão, não resultado de uma
 apresentação já realizada.
 
 ## Registro das evidências existentes
 
+O [README](../../README.md) é o estado atual. O responsável informou validação
+no n8n da sanitização, Router otimizado (nova/duplicata/falha de precheck),
+retenção DRY_RUN com auditoria e alerta sintético recebido no Slack DEV. Os três
+workflows observáveis posteriores continuam experimentais. Railway está
+indisponível após o período gratuito; não repetir testes PROD.
+
 | Evidência | O que se observa / alcance | O que não comprova |
 | --- | --- | --- |
 | [Canvas sanitização](../evidencias/etapa2-sanitizacao-pii-n8n.png) | Webhook ligado a `Sanitizar PII` antes de `LLM PROD`; sanitizador com indicação de execução | Input/output da máscara, versão exata, chamada LLM bem-sucedida, ausência de dados pessoais fixados ou deploy ativo |
 | [Canvas retenção](../evidencias/etapa2-retencao-dry-run.png) | Percurso da agenda/motor/guard/gate e stub `Airtable DEV operacao` do tipo Code; retorno ao resumo | Exclusão real, persistência no Airtable, métricas finais ou aprovação jurídica |
+| `retention-6`, informado pelo usuário | Airtable DEV em DRY_RUN: 4 analisados, 2 elegíveis, 0 excluídos/falhas, 2 páginas e auditoria confirmada | Importação da nova observabilidade, entrega Slack ou desempenho medido nesta implementação |
+| [Resumo retention-6 redigido](../evidencias/retention-6-resumo-redigido.png) e [auditoria](../evidencias/retention-6-RetentionAudit-table.png) | Métricas DRY_RUN e auditoria agregada; recorte sem preview de IDs | Exclusão real, PROD ou validação dos experimentos |
+| [Falha de observabilidade simulada](../evidencias/observabilidade-falha-simulada.json) | HTTP 503 e um alerta em memória; evento sem PII, contadores e duração sintética | Mensagem recebida no Slack real ou latência de API |
 | [Relatório da rotação simulada](../security/evidencias/rotacao-simulada.json) | 38 cenários executados em memória, checksum e hashes antes/depois; script permite repetir a checagem | Rotação/revogação em fornecedor, criptografia n8n, custódia ou titularidade de conta |
 | [Evidências históricas](../evidencias/evidencias-projeto.md) | Relatos/capturas da Etapa 1, identificados como históricos | Estado atual da produção ou execução dos controles novos |
 
@@ -20,10 +29,16 @@ compartilhar: o fato de estar no Git não o torna automaticamente seguro/public�
 
 ## Demonstração recomendada
 
+Complementar com o [roteiro de observabilidade DEV](../etapa-2-observabilidade.md):
+DEMO offline com alerta `simulated`, evento/contadores/latência e, separadamente,
+as quatro validações manuais indispensáveis. Não confundir console do navegador
+em execução manual com stdout do servidor em execução não manual.
+
 1. **Escopo e integridade.** Mostrar `git status --short --branch` e
-   `git log -1 --oneline`; explicar baseline `718ce4d` e alterações locais sem commit.
-   Não abrir `.env` real, Raw Editor, cofres ou console com variáveis. Conferir com
-   `git diff --name-only` que os workflows funcionais não foram editados.
+   `git log -1 --oneline`; explicar HEAD `27652b0` e alterações locais sem commit.
+   Não abrir `.env` real, Raw Editor, cofres ou console com variáveis. Mostrar o
+   inventário da auditoria: v3/v4 preservados; retenção corrigida e candidatos DEV
+   pertencem às alterações da Etapa 2 anteriores a esta revisão documental.
 2. **Mapa e escolhas.** Mostrar [mapa](mapa-dados-pessoais.md): original entra no
    Webhook, v4 reduz prompt/Slack mas conserva original no Airtable; PostgreSQL/logs
    são outro armazenamento. Apontar hipóteses legais e papéis ainda não aprovados.
@@ -59,6 +74,8 @@ python -m unittest discover -s tests -v
 python scripts/build_retention_workflow.py --check
 node tests/test_pii_sanitization.cjs
 node tests/test_retention.cjs
+node tests/test_observability.cjs
+node scripts/simular_falha_observabilidade.cjs
 python scripts/simular_rotacao_credenciais.py --output docs/security/evidencias/rotacao-simulada.json
 python scripts/simular_rotacao_credenciais.py --verify docs/security/evidencias/rotacao-simulada.json
 git diff --check
@@ -69,13 +86,12 @@ PATH desta máquina, o executável usado nas validações está em
 `%LOCALAPPDATA%\Programs\Bionic\resources\app\.webpack-bionic\bin\node.exe`.
 Isso é caminho local, não dependência a hardcodear no CI.
 
-Validação efetivamente repetida nesta revisão: 29 verificações estruturais,
-10 verificações de roteamento, 22 testes Python, 102 casos de sanitização e
-97 casos de retenção aprovados; exports de retenção sincronizados. A simulação
-aprovou seus 38 cenários, e a verificação aceitou o relatório original e rejeitou
-checksum adulterado, resultado adulterado com checksum recalculado e schema inválido.
-Os links locais examinados não tinham destinos ausentes; `git diff --check` passou.
-O CI remoto, a engine n8n e os fornecedores não foram executados nesta revisão.
+Os resultados atuais de suítes, exports, Compose, Gitleaks e revisão visual
+estão na [auditoria da entrega](../entrega-etapa-2.md), evitando manter contagens
+antigas como se descrevessem a revisão atual. O CI remoto e o engine n8n não
+foram executados nesta auditoria. Capturas `06`, `08`, `09` e `11` receberam
+ocultação visual; seus originais já estavam no histórico público. Não publicar
+antes da decisão de privacidade e conferência de autodeploy.
 
 `--output` atualiza o relatório da simulação com novo timestamp. Para verificar a
 evidência já entregue sem regravá-la, usar apenas `--verify`. A verificação compara

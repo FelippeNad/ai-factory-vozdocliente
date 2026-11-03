@@ -8,7 +8,7 @@ let body;
 let statusCode = 200;
 if (s.action === 'schema') {
   body = { tables: [
-    { id: s.config.table, name: 'Reviews', fields: [{ name: 'processed_at', type: 'dateTime' }] },
+    { id: s.config.table, name: s.config.tableName, fields: [{ name: 'processed_at', type: 'dateTime' }] },
     { id: s.config.auditTable, name: 'RetentionAudit',
       fields: Object.entries(AUDIT_TYPES).map(([name, type]) => ({ name, type })) },
   ] };

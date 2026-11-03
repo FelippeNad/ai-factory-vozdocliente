@@ -4,6 +4,13 @@ Este documento reúne evidências visuais e operacionais da evolução do protó
 
 ## Complemento da Etapa 2
 
+Estado atual: Railway indisponível após o período gratuito. As capturas históricas
+de deploy não comprovam disponibilidade. As capturas `02` a `06`, `08`, `09` e `11`
+receberam recorte e/ou tarjas sólidas para ocultar nomes de clientes, identificadores
+de registros e identificação de contas, sem IA generativa e sem
+alterar os pixels técnicos restantes. Os originais já estão no histórico público;
+ver [auditoria de publicação](../entrega-etapa-2.md). Não houve reescrita ou upload.
+
 As seções numeradas abaixo são registros históricos da Etapa 1, não comprovação
 do estado atual. O [roteiro da Etapa 2](../lgpd/roteiro-evidencias.md) descreve o
 alcance das capturas [sanitização](etapa2-sanitizacao-pii-n8n.png) e

@@ -1,5 +1,7 @@
 # Post-mortem — Persistência da chave de criptografia do n8n
 
+> Registro histórico do incidente. Não aplicar alterações de credenciais, chave ou Railway nesta entrega. Produção está indisponível após o período gratuito; a revisão atual é local e o procedimento de rotação continua separado, simulado e sujeito à autorização operacional.
+
 Este é um relato histórico da implantação inicial. O reset de armazenamento
 descrito abaixo não é um procedimento de rotação para uma instância com dados.
 Consulte [rotação, DEK, chave mestra e recuperação](security/rotacao-credenciais.md)

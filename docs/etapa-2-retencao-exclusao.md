@@ -7,6 +7,11 @@ e [roteiro de evidências](lgpd/roteiro-evidencias.md). A captura agora versiona
 comprova DELETE ou auditoria em base real. O briefing limita logs a 90 dias,
 distinto dos prazos demonstrativos descritos abaixo e sujeito à verificação real.
 
+O usuário informou sucesso operacional DEV em `retention-6` (4 analisados,
+2 elegíveis, 0 excluídos/falhas, 2 páginas e auditoria persistida/finalizada).
+A nova [observabilidade DEV](etapa-2-observabilidade.md) reaproveita esse resumo;
+logs, latência e entrega Slack novos ainda exigem validação manual da importação.
+
 Implementado na branch `etapa-2`, a partir de `f66cb79`, sem alterações nas versões
 v3/v4 de classificação. Nenhuma exclusão real, chamada a APIs, alteração de
 credenciais, ativação, deploy ou commit foi realizado nesta implementação.
@@ -19,7 +24,8 @@ não uma exigência legal. O responsável pelo tratamento precisa aprovar um pra
 adequado à finalidade, obrigações aplicáveis, tratativas abertas e eventuais deveres
 de preservação antes de habilitar exclusão. Este mecanismo não toma essa decisão.
 
-A exclusão remove o registro inteiro de `Reviews`, incluindo nome e texto original.
+A exclusão remove o registro inteiro da tabela DEV selecionada por ID (nome esperado
+em `RETENTION_TABLE_NAME`, padrão `Reviews`), incluindo nome e texto original.
 Ela não anonimiza registros, não atende automaticamente todos os direitos do
 titular e não apaga mensagens Slack, dados no LLM, histórico n8n, cópias na origem,
 lixeira ou backups. Remover identificadores diretos não torna um dado anônimo.
@@ -33,6 +39,13 @@ Dois artefatos independentes e **inativos**:
   são simuladas em memória, usando a mesma política e o mesmo grafo operacional.
 
 ## Campo de data e critério de elegibilidade
+
+Se a execução retorna `SCHEMA_INVALID` antes da listagem, consultar o
+[diagnóstico de schema](diagnostico-schema-retencao.md). A v1 exige o nome exato
+configurado em `RETENTION_TABLE_NAME` (padrão `Reviews`) e o nome fixo
+`RetentionAudit`, além da seleção por ID e dos tipos de campos. Para usar a tabela
+isolada existente, configurar `RETENTION_TABLE_NAME=ReviewsRetentionTest` e seu ID;
+não é necessário renomear tabelas nem alterar o schema da classificação.
 
 A v3/v4 produz `processed_at` com `new Date().toISOString()`. O schema do projeto
 documenta **Date com horário**. Segundo a
@@ -68,20 +81,69 @@ Schedule Trigger (03:00, America/Sao_Paulo)
   -> espera de 1 segundo
   -> Validar operação DEV
   -> Há operação segura?
-     sim -> HTTP Airtable -> Receber resposta -> Motor de retenção
+     sim -> Operação com body?
+              sim -> HTTP auditoria (POST/PATCH, Send Body=true)
+              não -> HTTP sem body (GET/DELETE, Send Body=false)
+            -> Receber resposta -> Motor de retenção
      não -> Resumo sem PII
 ```
 
 O motor percorre os estados de metadados, listagem, auditoria inicial, releitura,
 DELETE e atualização da auditoria. O guard constrói cada URL/método autorizado;
-não recebe um endpoint arbitrário do webhook. Há um único transporte, domínio
+não recebe um endpoint arbitrário do webhook. Há dois nodes de transporte, domínio
 fixo `https://api.airtable.com`, redirects desativados e timeout de 15 segundos.
 
+O HTTP Request **4.1** declara `sendBody` como booleano com
+**`noDataExpression: true`**. A expressão usada anteriormente nesse parâmetro era
+incompatível com o contrato do node; explicitar apenas `contentType=json` não
+corrigia esse erro. A condição `={{ $json.request.body !== undefined }}` foi movida
+para o IF **`Operacao com body?`**, após as barreiras de segurança existentes:
+
+- `Airtable DEV operacao`: `sendBody: true` **literal**, `contentType: json`,
+  `specifyBody: json`, `jsonBody: ={{ JSON.stringify($json.request.body) }}`.
+  Recebe POST/PATCH de auditoria e envia o envelope completo `{"fields": {...}}`.
+- `Airtable DEV sem body`: `sendBody: false` **literal**, sem parâmetros de payload.
+  Recebe GET de metadados/listagem/releitura e DELETE já autorizado pelo guard.
+
+Os dois nodes retornam para `Receber resposta`; nenhum contorna Motor, guard ou
+`Ha operacao segura?`. A validação estrutural rejeita expressões em `sendBody`,
+booleanos incorretos, formato diferente de JSON, serialização sem envelope,
+inversão de ramos ou bypass das barreiras por qualquer um dos transportes.
+
+Reimportar a v1 regenerada como novo workflow inativo e selecionar a **mesma
+credencial DEV existente nos dois nodes HTTP Airtable**. O Slack opt-in usa sua
+própria credencial DEV, conforme documentação de observabilidade. Não reutilizar o node antigo que
+mantinha `sendBody` como expressão. A DEMO também foi regenerada: os dois transportes
+são Code, sem HTTP ou credenciais, mantendo os mesmos resultados sintéticos.
+
+### Evidência local do contrato HTTP Request
+
+Foi consultado somente o container `vozdocliente-retencao-dev`, n8n **2.28.7**,
+sem acessar PROD, `.env`, credenciais reais ou APIs. No pacote instalado
+`n8n-nodes-base`, os arquivos relativos a `dist/nodes/HttpRequest/` confirmaram:
+
+- `HttpRequest.node.js`, linha 28: versão `4.1` usa `HttpRequestV3`.
+- `V3/Description.js`, linhas 340–345: `sendBody`, `type: 'boolean'`,
+  `default: false`, `noDataExpression: true`.
+- `V3/Description.js`, linhas 351–354 e 467–472: os parâmetros de body dependem
+  de `sendBody: [true]`, além do formato JSON.
+- `V3/HttpRequestV3.node.js`, linhas 169 e 262–273: lê `sendBody` com default falso;
+  só monta o body com envio habilitado e usa o JSON completo informado.
+
+Também foi executado `HttpRequestV3.execute()` instalado, com os parâmetros dos
+dois nodes exportados, contexto de teste, credencial **sintética** e helper HTTP
+substituído por transporte em memória. Foram bloqueados `http`/`https`, conexão
+TCP, `dns.lookup` e `fetch` nesse processo. Os quatro casos passaram: POST/PATCH com `fields`,
+GET/DELETE sem propriedade `body`, zero chamadas de rede. Isso valida o contrato
+e a montagem da requisição pelo código instalado, **não** uma importação na UI,
+uma execução persistida na engine ou integração com Airtable real. As referências
+de linha são específicas do pacote inspecionado, não de todas as versões n8n.
+
 1. **Configuração:** exige `RETENTION_ENV=DEV`, IDs válidos e distintos para
-   `Reviews` e `RetentionAudit`, base DEV explícita e ausência dela na denylist.
+   a tabela de reviews e `RetentionAudit`, base DEV explícita e ausência dela na denylist.
    Nunca usa `AIRTABLE_BASE_ID` da classificação como fallback.
-2. **Schema:** confirma nomes das duas tabelas, `processed_at=dateTime` e os tipos
-   dos campos de auditoria antes de ler avaliações.
+2. **Schema:** confirma o nome esperado configurado e o nome fixo `RetentionAudit`,
+   `processed_at=dateTime` e os 18 pares de nome/tipo da auditoria antes de ler avaliações.
 3. **Seleção:** solicita apenas ID técnico e `fields[]=processed_at`. Pagina por
    `offset`, codificando o token como query parameter. Não baixa nome, texto,
    telefone ou e-mail. Não filtra por data no servidor: assim conta recentes e
@@ -124,7 +186,8 @@ local ignorado pelo Git. Nenhum token novo foi escrito em arquivo ou no workflow
 | `RETENTION_DRY_RUN` | `true` |
 | `RETENTION_DAYS` | `30`; inteiro entre 1 e 3650 |
 | `RETENTION_DEV_BASE_ID` | Obrigatório; único destino permitido |
-| `RETENTION_TABLE_ID` | ID da tabela `Reviews` DEV |
+| `RETENTION_TABLE_ID` | Obrigatório; ID da tabela de reviews DEV, mesmo ao configurar outro nome |
+| `RETENTION_TABLE_NAME` | `Reviews` quando ausente; nome exato da tabela selecionada por ID. Para testes: `ReviewsRetentionTest` |
 | `RETENTION_AUDIT_TABLE_ID` | ID distinto da tabela `RetentionAudit` DEV |
 | `RETENTION_PROTECTED_BASE_IDS` | IDs proibidos separados por vírgula, sem espaços; obrigatório e não vazio para DELETE |
 | `RETENTION_CONFIRM_DEV_BASE_ID` | Vazio no DRY_RUN; deve repetir exatamente o ID DEV para DELETE |
@@ -134,13 +197,22 @@ local ignorado pelo Git. Nenhum token novo foi escrito em arquivo ou no workflow
 | `RETENTION_MAX_ANALYZED` | 1000; teto absoluto 5000 |
 | `RETENTION_MAX_DELETE` | 10; teto absoluto 100 |
 
+O nome é sensível a maiúsculas e não é normalizado. Valor explicitamente vazio,
+não textual, maior que 255 caracteres, com espaços nas extremidades ou caracteres
+de controle/invisíveis bloqueia com `CONFIG_INVALID`. Essa é uma restrição local de
+configuração, não uma declaração sobre limites da API Airtable. Divergência entre
+nome válido configurado e metadados retorna `SCHEMA_INVALID`. O Compose usa
+`${RETENTION_TABLE_NAME-Reviews}` para preservar o vazio explícito e permitir esse
+bloqueio. O nome é incorporado ao estado; mudanças durante a execução são bloqueadas
+pelo guard antes da próxima operação. URLs continuam usando somente IDs.
+
 Exceder `MAX_DELETE` bloqueia **todas** as exclusões daquela execução; não elimina
 os primeiros N silenciosamente. O preview é limitado a N IDs/datas com indicador
 `preview_truncated`. O motor limita o processamento a dez minutos e tenta finalizar
 a auditoria; o workflow tem timeout externo de quinze minutos. O timeout/crash
 externo pode impedir essa finalização.
 
-Configurar no node HTTP, pelo editor, uma credencial Header Auth **exclusiva DEV**,
+Configurar nos dois nodes HTTP Airtable, pelo editor, a mesma credencial Header Auth **exclusiva DEV**,
 com PAT limitado à base DEV e escopos necessários de metadados/leitura/escrita.
 Mesmo DRY_RUN precisa escrever a auditoria, mas não emite DELETE para `Reviews`.
 O export não referencia IDs nem nomes de credenciais existentes. As palavras DEV
@@ -185,8 +257,10 @@ um DELETE, a contagem durável pode estar atrasada; o fluxo para imediatamente.
 
 O status do n8n pode ser sucesso técnico mesmo com resumo `blocked`/`partial`,
 pois erros esperados são tratados para produzir métricas. Acompanhar os campos da
-auditoria e o resumo, não apenas a cor verde do canvas. O workflow não envia alertas
-Slack e não foi integrado a um serviço de monitoramento nesta sessão.
+auditoria e o resumo, não apenas a cor verde do canvas. O resumo agora segue para a
+[observabilidade DEV](etapa-2-observabilidade.md), com evento e métricas sem PII,
+alerta de falha Slack opt-in e tratamento de sua entrega. Não há monitor externo;
+crashes antes do resumo continuam descobertos.
 
 ## Histórico interno do n8n: política independente
 
@@ -252,7 +326,7 @@ A compatibilidade de importação/engine nas versões usadas deve ser evidenciad
    Esse comando usa volume próprio; não recria nem reaproveita a instância de
    classificação. O download inicial da imagem pode exigir internet.
 2. Importar **`vozdocliente-retencao-demo.json`**, como novo workflow. Confirmar
-   que está inativo e que `Airtable DEV operacao` é **Code**, não HTTP Request.
+   que está inativo e que os dois nodes `Airtable DEV ...` são **Code**, não HTTP Request.
 3. Clicar **Execute Workflow**, sem publicar/ativar a agenda. Inspecionar o último
    resultado em `Resumo sem PII`. A demonstração leva alguns segundos por causa
    do intervalo entre operações.
@@ -273,25 +347,71 @@ para o percurso completo e não precisa de configuração de `.env`.
 
 Esse roteiro é para execução posterior pelo responsável; não foi executado aqui.
 
-1. Usar somente uma base DEV dedicada. Criar `Reviews` com `processed_at` Date
-   com horário e `RetentionAudit` conforme tabela acima. Inserir manualmente
+1. Usar somente uma base DEV dedicada. Usar `Reviews` ou a tabela isolada existente
+   `ReviewsRetentionTest`, com `processed_at` Date com horário, e `RetentionAudit`
+   conforme tabela acima. Inserir manualmente
    reviews **sintéticas**, com datas antigas, recentes e exatamente no limite.
    Campo DateTime real rejeita certas datas impossíveis: os casos inválidos ficam
    no stub; no Airtable é possível demonstrar um campo de data vazio.
 2. Preencher no `.env` local `RETENTION_ENV=DEV`, os três IDs DEV e manter
-   `RETENTION_DRY_RUN=true`. Para visualizar paginação com poucos registros, usar
+   `RETENTION_DRY_RUN=true`. Informar `RETENTION_TABLE_NAME=ReviewsRetentionTest`
+   quando esse for o nome da tabela selecionada por `RETENTION_TABLE_ID`.
+   Para visualizar paginação com poucos registros, usar
    `RETENTION_PAGE_SIZE=2`. Manter as duas confirmações de exclusão vazias.
 3. Recriar somente o serviço da instância dedicada com o Compose independente e
    `--env-file ../.env`. Não usar o Compose da classificação. Não alterar secrets
    da produção nem mapear tokens de produção.
 4. Importar a v1 como novo workflow inativo. Selecionar manualmente a credencial
-   DEV exclusiva no único node HTTP. Executar o fluxo completo pelo Schedule
+   DEV exclusiva nos dois nodes HTTP Airtable. Executar o fluxo completo pelo Schedule
    em modo manual; não executar o HTTP isoladamente com dados arbitrários.
 5. Conferir preview, contagens, `mode=DRY_RUN`, `deleted=0`, registro agregado na
    tabela de auditoria e **quantidade inalterada de reviews** antes/depois. DRY_RUN
    grava a auditoria, mas não exclui nem atualiza reviews.
 6. Capturar evidência com fixtures e ocultar credenciais, IDs reais de bases e
    quaisquer dados de terceiros. Manter o workflow inativo após a demonstração.
+
+### Atualizar uma instalação DEV que rejeitava `ReviewsRetentionTest`
+
+No arquivo de ambiente **efetivamente usado** pelo Compose, ajustar somente a
+configuração de retenção; os IDs existentes precisam continuar apontando à base
+DEV, à tabela de teste e à auditoria. Nenhuma chave/token deve ser alterada:
+
+```dotenv
+RETENTION_ENV=DEV
+RETENTION_DRY_RUN=true
+RETENTION_TABLE_NAME=ReviewsRetentionTest
+RETENTION_CONFIRM_DEV_BASE_ID=
+RETENTION_DELETE_CONFIRMATION=
+```
+
+Se o arquivo escolhido for `.env` da raiz, executar manualmente **na raiz do repo**:
+
+```powershell
+docker compose -p vozdocliente-retencao --env-file .env -f n8n-mirror/docker-compose.retention.yml config --quiet
+docker compose -p vozdocliente-retencao --env-file .env -f n8n-mirror/docker-compose.retention.yml up -d --force-recreate n8n
+```
+
+Se estiver usando `n8n-mirror/.env`, substituir **ambas** as ocorrências de
+`--env-file .env` por `--env-file n8n-mirror/.env`. Não manter configurações
+divergentes nem imprimir `config` completo, que pode expor variáveis. Um simples
+`restart` não carrega novas variáveis; a recriação local deve preservar o volume.
+Estes comandos ficam para execução pelo responsável, não foram executados aqui.
+
+Reimportar `n8n-mirror/workflows/vozdocliente-retencao-v1.json` como **novo workflow
+inativo** e selecionar a mesma credencial DEV já existente nos dois HTTP Airtable.
+O terceiro HTTP é `Slack DEV falha`, com credencial Slack DEV própria e alerta
+desabilitado por padrão; ver o roteiro de observabilidade. Manter a
+versão anterior inativa; não substituir nem ativar a v3/v4. Confirmar no código
+importado `reviews?.name !== config.tableName`; atualizar só o `.env` não corrige
+o JavaScript de um workflow antigo. Não reutilizar estado/pinData de execuções
+anteriores: iniciar uma execução completa, manual, sem ativar a agenda.
+
+No item da fase `schema`, confirmar `state.config.tableName=ReviewsRetentionTest`
+e correspondência dos IDs localmente; se necessário usar a projeção do diagnóstico,
+sem divulgar estado completo. O resultado esperado depende dos registros: ausência
+de `SCHEMA_INVALID`, `mode=DRY_RUN`, `deleted=0` e auditoria confirmada se schema,
+permissões e transporte estiverem corretos. DRY_RUN grava a auditoria agregada;
+não altera as reviews. Nenhuma chamada de validação à base real foi feita aqui.
 
 ## Recuperação e riscos remanescentes
 
@@ -336,6 +456,9 @@ python tests/test_routing_logic.py
 python -m unittest discover -s tests -v
 node tests/test_pii_sanitization.cjs
 node tests/test_retention.cjs
+node tests/test_retention_schema_diagnostic.cjs
+node tests/test_observability.cjs
+node scripts/simular_falha_observabilidade.cjs
 git diff --check
 ```
 
@@ -347,7 +470,8 @@ transporte em memória. Não representam uma execução da engine n8n nem acesso
 uma base real. A exclusão real só foi simulada em testes, inclusive os casos de
 sucesso, timeout e checkpoint com falha.
 
-Na validação local: 97 cenários de retenção, 102 de sanitização, 22 testes Python,
+Na validação local desta correção: 165 cenários de retenção, 49 de diagnóstico,
+102 de sanitização, 25 testes Python e 15 cenários novos de observabilidade,
 10 verificações legadas e 29 estruturais passaram. O Compose independente foi
 validado por `docker compose ... config --quiet`, sem iniciar container. Python
 3.14.7, Node 25.5.0; CI usa Python 3.12 e Node 22 e não foi disparado nesta sessão.
@@ -362,6 +486,7 @@ Para a entrega, anexar saída dos testes e evidências **a produzir**:
 - settings e verificação do pruning interno com execuções sintéticas concluídas,
   observando os intervalos/buffer e exceções de execuções anotadas/em andamento.
 
-Nenhuma captura nova de UI, auditoria Airtable real, teste de restauração, pruning
+Além da inspeção do contrato e do teste isolado do `execute()` descritos acima,
+nenhuma captura nova de UI, auditoria Airtable real, teste de restauração, pruning
 em execução ou importação na engine foi produzida nesta implementação. Registrar
 explicitamente quais evidências são simulação e quais são integração DEV.

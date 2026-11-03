@@ -1,412 +1,192 @@
 # VozDoCliente — AI Review Router
 
-Sistema de triagem automática de avaliações de clientes utilizando IA para classificação de sentimento e tema, persistência estruturada e roteamento de alertas para o time de CX.
+Projeto da disciplina AI Factory da PUCPR: triagem de avaliações por sentimento e
+tema, com n8n, LLM, Airtable e Slack. A Etapa 2 adiciona controles de segurança e
+privacidade. Esta entrega é preparada na branch local `etapa-2`, sem publicação,
+deploy, exclusão real ou rotação de credenciais.
 
-Este projeto é uma evolução de um protótipo herdado originalmente implementado em Make.com. A solução foi revisada e evoluída para uma arquitetura baseada em n8n, com separação entre desenvolvimento e produção, workflow versionado, testes automatizados, deploy público e CI/CD.
+## Estado da entrega — 03/11/2026
 
-## Objetivo
+### VALIDADO NO N8N
 
-Automatizar o processamento de avaliações recebidas de diferentes canais.
+Validações locais informadas pelo responsável do projeto, com dados sintéticos e
+recursos DEV. Não foram repetidas contra fornecedores nesta auditoria:
 
-Cada avaliação é:
+- Sanitização PII antes do LLM, sem fallback para o texto original.
+- Deduplicação e classificação do **Router v4 otimizado DEV**: avaliação nova e
+  duplicata interrompida antes do LLM.
+- Bloqueio seguro quando a consulta de precheck falha, sem LLM nem persistência.
+- Retenção **DRY_RUN** com auditoria no Airtable DEV: `retention-6`, 4 analisados,
+  2 elegíveis, 0 excluídos, 0 falhas, 2 páginas, `audit_persisted=true` e
+  `audit_finalized=true`.
+- Alerta de falha sintética **enviado e recebido no Slack DEV**:
+  `alert_status=sent`, `alert_error_code=null`, com logs e métricas.
+  Essa validação pertence à observabilidade da retenção, não ao Router experimental.
 
-1. recebida por webhook;
-2. sanitizada para reduzir PII antes da classificação (v4 da Etapa 2);
-3. classificada por um LLM usando exclusivamente o campo sanitizado;
-4. validada e normalizada;
-5. verificada contra registros existentes;
-6. persistida no Airtable;
-7. encaminhada ao Slack quando possui sentimento negativo.
+### VALIDADO OFFLINE
 
-O princípio funcional do sistema é:
+- Benchmark com a mesma carga sintética de **120 eventos**: **120 → 30 chamadas
+  LLM simuladas** (−75%), mesmos 30 registros e textos de alertas. Consultas
+  Airtable simuladas: 120 → 150. Não são chamadas reais nem economia faturada.
+- O harness ficou mais lento: média 458,654 → 555,445 ms/lote. Não foi demonstrado
+  ganho de latência de API ou de produção. Ver [metodologia e amostras](docs/etapa-2-otimizacao-v4.md).
+- Testes automatizados de sanitização, classificação, deduplicação, retenção,
+  diagnóstico de schema, observabilidade, exports e barreiras de segurança.
+- Exercício de rotação com 38 cenários de estados fictícios, sem troca de tokens
+  ou teste criptográfico real do n8n.
 
-> Nenhuma reclamação sem resposta.
+### EXPERIMENTAL / PENDENTE
 
-## Fluxo principal
+- Os **três workflows de observabilidade do Router** foram testados offline;
+  importação, subworkflows, Error Trigger e Slack integrado no engine continuam
+  pendentes. Não são o caminho recomendado para a demonstração estável.
+- Dashboard com dados reais, métricas de latência e custos reais, corpus rotulado
+  e acurácia de classificação ainda não foram produzidos.
+- O [relatório visual de 23 eventos](docs/evidencias/router-observabilidade-simulacao.html)
+  é **SIMULAÇÃO OFFLINE**. p50=5 ms, p95=31 ms e p99=31 ms descrevem somente o
+  harness com mocks, N=3 execuções. **Não são métricas de produção ou do n8n.**
+- O deploy de produção está **indisponível após o período gratuito do Railway**,
+  conforme informado pelo responsável. URLs, smoke tests e capturas antigos são
+  históricos; não comprovam disponibilidade atual. Não acessar PROD nesta entrega.
+- Publicação depende da revisão de imagens históricas e da confirmação manual de
+  que Railway, webhooks e apps não farão autodeploy. Ver [auditoria da entrega](docs/entrega-etapa-2.md).
 
-```text
-Review
-  ↓
-Webhook n8n
-  ↓
-Sanitizar PII (v4)
-  ↓
-LLM
-  ↓
-Parse + validação
-  ↓
-Busca por review_id
-  ↓
-Deduplicação
-  ↓
-Airtable
-  ↓
-Sentimento negativo?
-  ├── Não → fim
-  └── Sim → Slack
-```
+## Workflows recomendados e referências
 
-A classificação utiliza:
+Todos os caminhos abaixo estão em `n8n-mirror/workflows/`.
 
-### Sentimento
+| Arquivo | Uso nesta entrega | Estado do export |
+| --- | --- | --- |
+| `vozdocliente-router-v4-otimizado-dev.json` | **Router DEV recomendado**, validado localmente pelo responsável | Inativo, sem referências de credenciais |
+| `vozdocliente-retencao-v1.json` | **Retenção DEV recomendada**, apenas DRY_RUN na demonstração | Inativo, sem referências de credenciais |
+| `vozdocliente-retencao-demo.json` | **Demonstração sem APIs**: transportes Code e alerta simulado | Inativo, sem credenciais |
+| `vozdocliente-router-v4-observavel-dev.json` | Router instrumentado **experimental**, offline | Inativo, sem credenciais |
+| `vozdocliente-observabilidade-router-dev.json` | Subworkflow de alerta **experimental**, offline | Inativo, sem credenciais |
+| `vozdocliente-erros-router-dev.json` | Error Workflow **experimental**, offline | Inativo, sem credenciais |
+| `vozdocliente-router-v4.json` | Baseline de PII preservada; não usar como configuração DEV pronta | Inativo; referências antigas de credenciais, sem valores |
+| `vozdocliente-router-v3.json` | Referência histórica de produção; **não importar/ativar** para demonstração | `active=true` histórico, preservado; referências sem valores |
+| `vozdocliente-router-v0.json`, `v1.json`, `v2.json` | Protótipos históricos; não recomendados | Inativos; referências antigas sem valores |
 
-- `positivo`
-- `neutro`
-- `negativo`
+Referências de credenciais no JSON são metadados, não tokens, mas podem vincular
+credenciais existentes ao importar na mesma instância. Não reutilizar as versões
+históricas como configuração DEV. Export inativo não torna uma execução manual
+HTTP uma simulação: os workflows operacionais fazem chamadas reais quando usados.
 
-### Tema
-
-- `entrega`
-- `produto`
-- `atendimento`
-- `preco`
-- `app_bug`
-
-## Como rodar localmente
-
-O ambiente de desenvolvimento utiliza n8n em Docker e LM Studio com Qwen3-4B.
-
-Para iniciar o n8n local:
-
-```bash
-cd n8n-mirror
-docker compose up -d
-```
-
-## Ambientes
-
-### Desenvolvimento
-
-O ambiente de desenvolvimento utiliza:
-
-- n8n em Docker;
-- LM Studio;
-- Qwen3-4B;
-- Airtable DEV;
-- Slack DEV;
-- credenciais específicas de desenvolvimento.
-
-Esse ambiente permite desenvolver e testar o workflow sem depender da infraestrutura de produção e sem necessidade de utilizar uma API externa de LLM.
-
-### Produção
-
-O ambiente de produção utiliza:
-
-- n8n hospedado no Railway;
-- OpenAI API;
-- modelo `gpt-5.6-luna`;
-- Airtable PROD;
-- Slack PROD;
-- PostgreSQL para persistência interna do n8n;
-- variáveis e secrets configurados no ambiente de produção.
-
-URL pública do n8n:
+## Fluxo recomendado: Router v4 otimizado DEV
 
 ```text
-https://n8n-production-7813.up.railway.app
+Webhook Review → Sanitizar PII → Preparar deduplicacao DEV
+  → Airtable Precheck DEV → Validar busca e restaurar texto → Ja existe? DEV
+       true: encerra sem LLM
+       false: LLM DEV → Parse + Merge → Airtable Buscar review_id
+         → Validar busca final DEV → Confirmar novo? DEV
+              true: encerra (duplicata)
+              false: Airtable DEV → É negativo? → Slack DEV se negativo
 ```
 
-Endpoint de produção:
+Sentimentos: `positivo`, `neutro`, `negativo`. Temas: `entrega`, `produto`,
+`atendimento`, `preco`, `app_bug`. A validação rejeita saídas fora desse contrato.
+O precheck falha fechado; a consulta final continua obrigatória. Leitura e criação
+não são atômicas: a corrida concorrente não foi eliminada.
 
-```text
-POST https://n8n-production-7813.up.railway.app/webhook/review
-```
+Somente `review_text_sanitized` segue ao LLM. Airtable mantém o original para
+tratativa; Slack v4 recebe tema/nota e instrução fixa. Regex não detecta toda PII,
+não anonimiza o dado e não estabelece conformidade integral com a LGPD.
 
-## Exemplo de requisição
+## Configuração local
 
-```json
-{
-  "review_id": "R-1001",
-  "customer_name": "Cliente Exemplo",
-  "source": "app-store",
-  "rating": 1,
-  "review_text": "Produto chegou quebrado e o atendimento nao respondeu."
-}
-```
+- Classificação: `n8n-mirror/docker-compose.yml`, n8n **2.28.7**, porta
+  `127.0.0.1:5678`, volume próprio.
+- Retenção: `n8n-mirror/docker-compose.retention.yml`, n8n **2.28.7**, porta
+  `127.0.0.1:5680`, volume independente.
+- Usar `--env-file` explícito: na raiz, `--env-file n8n-mirror/.env` seleciona
+  esse arquivo; `--env-file .env` seleciona o arquivo da raiz. Não presumir que
+  editar um deles altera a outra instância. Credenciais são selecionadas na UI.
+- O Router otimizado exige `CLASSIFIER_ENV=DEV`, `CLASSIFIER_DEV_BASE_ID`,
+  `CLASSIFIER_DEV_TABLE_ID` e `CLASSIFIER_SLACK_DEV_CHANNEL_ID` para alertas.
+  Não usa fallback para `AIRTABLE_BASE_ID`.
+- Retenção usa `RETENTION_ENV=DEV`, `RETENTION_DRY_RUN=true`, IDs DEV e
+  `RETENTION_TABLE_NAME=ReviewsRetentionTest` para a tabela de testes isolada.
+  `RetentionAudit` e seus 18 campos permanecem obrigatórios. Prazo de 30 dias
+  é demonstrativo, não exigência legal. Não habilitar DELETE para apresentar.
+- O candidato otimizado chama OpenAI; LM Studio/Qwen pertence ao protótipo
+  histórico. Modelo/projeto precisam corresponder à configuração DEV validada.
 
-Exemplo com PowerShell:
+Validação sintética sem iniciar serviços e sem imprimir valores de `.env` reais:
 
 ```powershell
-curl -Method POST https://n8n-production-7813.up.railway.app/webhook/review `
-  -ContentType "application/json" `
-  -Body '{"review_id":"R-1001","customer_name":"Cliente Exemplo","source":"app-store","rating":1,"review_text":"Produto chegou quebrado e o atendimento nao respondeu."}'
+docker compose --env-file .env.example -f n8n-mirror/docker-compose.yml config --quiet
+docker compose --env-file .env.example -f n8n-mirror/docker-compose.retention.yml config --quiet
 ```
 
-## Deduplicação
+O primeiro acesso local cria uma conta owner; não há login padrão `admin/admin`.
+Importação e execução manual: [guia local](n8n-mirror/README.md),
+[otimização](docs/etapa-2-otimizacao-v4.md) e
+[retenção](docs/etapa-2-retencao-exclusao.md). A DEMO não exige APIs/credenciais.
 
-Antes da criação de um registro, o workflow consulta o Airtable utilizando `review_id`.
+## Testes e evidências offline
 
-Caso o identificador já exista:
+Python 3.12+ e Node.js 22+, sem instalação npm. Nenhum comando abaixo faz deploy,
+rotação real, DELETE ou chamadas aos fornecedores:
 
-```text
-review_id encontrado
-       ↓
-deduplicação = TRUE
-       ↓
-fluxo encerrado
-```
-
-Isso evita:
-
-- registros duplicados;
-- alertas duplicados no Slack.
-
-A busca continua depois do LLM, portanto duplicatas ainda podem gerar chamadas
-de classificação. Busca e criação não são uma operação atômica.
-
-## Validação da saída do LLM
-
-A saída do modelo é processada pelo node `Parse + Merge`.
-
-O fluxo:
-
-- verifica se existe resposta do LLM;
-- realiza o parse do JSON;
-- normaliza os valores;
-- valida `sentiment`;
-- valida `theme`;
-- interrompe a execução em caso de resposta inválida.
-
-Em produção, a chamada à OpenAI utiliza JSON Schema com valores permitidos para sentimento e tema.
-
-## Workflow versionado
-
-As versões exportadas do workflow n8n estão em:
-
-```text
-n8n-mirror/workflows/
-```
-
-Versão candidata da Etapa 2 (inativa, sem deploy):
-
-```text
-vozdocliente-router-v4.json
-```
-
-A v3 permanece como referência sem modificações. A sanitização obrigatória antes
-do LLM e os riscos de Airtable, Slack, logs e histórico estão documentados em
-[Etapa 2 — sanitização de PII](docs/etapa-2-sanitizacao-pii.md). Regex não garante
-anonimização nem conformidade integral com a LGPD. O Airtable ainda recebe dados
-originais; o Slack da v4 recebe apenas tema, nota e instrução fixa de tratativa.
-
-Retenção da Etapa 2: `vozdocliente-retencao-v1.json` é independente, inativo e usa
-Schedule Trigger, prazo configurável de 30 dias demonstrativos, paginação,
-auditoria agregada e DRY_RUN por padrão. DELETE exige DEV e confirmações explícitas.
-A [política de retenção e roteiro de evidências](docs/etapa-2-retencao-exclusao.md)
-separa reviews do Airtable do histórico interno n8n e descreve riscos/recuperação.
-
-Para demonstrar sem APIs nem credenciais, importe
-`n8n-mirror/workflows/vozdocliente-retencao-demo.json` no n8n local, mantenha inativo
-e clique **Execute Workflow**. O resumo esperado é: 6 analisados, 2 elegíveis,
-0 excluídos, 3 páginas e 2 datas inválidas/ausentes intencionais (`status=partial`).
-Uma instância isolada opcional está em `n8n-mirror/docker-compose.retention.yml`,
-na porta `5680` com volume próprio. Não foram iniciados containers nesta entrega.
-
-As credenciais não são armazenadas diretamente no JSON exportado. Cada ambiente mantém suas próprias credenciais.
-
-O identificador da base Airtable é obtido por variável de ambiente:
-
-```text
-AIRTABLE_BASE_ID
-```
-
-## Testes
-
-Os testes automatizados podem ser executados sem acessar APIs externas:
-
-```bash
+```powershell
 python tests/validate_workflows.py
 python tests/test_routing_logic.py
 python -m unittest discover -s tests -v
+python scripts/build_retention_workflow.py --check
+python scripts/build_router_optimized_workflow.py --check
+python scripts/build_router_observability.py --check
 node tests/test_pii_sanitization.cjs
 node tests/test_retention.cjs
-python scripts/build_retention_workflow.py --check
-```
-
-`validate_workflows.py` verifica a estrutura dos workflows e suas conexões.
-
-`test_routing_logic.py` utiliza um LLM mockado para validar classificação e lógica de roteamento.
-
-Os novos testes executam o JavaScript real da v4, validam ausência de fallback e
-de caminhos que contornem a sanitização, e preservação das categorias com dados
-sintéticos. Requerem Python 3.12+ e Node.js 22+, sem dependências adicionais.
-
-Os testes de retenção percorrem os nodes e conexões exportados com Airtable
-simulado, incluindo falhas, datas, paginação e bloqueios de exclusão. As fontes
-em `n8n-mirror/retention/` geram os exports via
-`python scripts/build_retention_workflow.py`; o CI verifica sua sincronização.
-
-## Smoke tests de produção
-
-Foram executados três smoke tests no endpoint público de produção:
-
-| Cenário | Resultado |
-| --- | --- |
-| Review negativa | Airtable + alerta Slack |
-| Review positiva | Airtable, sem alerta Slack |
-| Review duplicada | bloqueada pela deduplicação |
-
-Resultado:
-
-```text
-3/3 testes aprovados
-```
-
-A documentação completa está em:
-
-```text
-docs/smoke-tests.md
-```
-
-As evidências estão armazenadas em:
-
-```text
-docs/evidencias/
-```
-
-## CI/CD
-
-O repositório possui GitHub Actions configurado em:
-
-```text
-.github/workflows/ci.yml
-```
-
-Em alterações enviadas para a branch `main`, o pipeline executa:
-
-```text
-Push main
-   ↓
-GitHub Actions
-   ↓
-Validação estrutural do workflow
-   ↓
-Testes de roteamento
-   ↓
-Railway detecta o novo commit
-   ↓
-Build da imagem
-   ↓
-Deploy automático
-```
-
-A imagem de produção utiliza uma versão fixa do n8n através do `Dockerfile`:
-
-```dockerfile
-FROM n8nio/n8n:2.41.7
-```
-
-Isso evita alterações inesperadas causadas pelo uso de uma tag `latest`.
-
-## Estrutura principal
-
-```text
-ai-factory-vozdocliente/
-├── .github/
-│   └── workflows/
-│       └── ci.yml
-├── docs/
-│   ├── adr/
-│   ├── architecture/
-│   ├── evidencias/
-│   ├── auditoria-prototipo.md
-│   ├── matriz-decisao-stack.md
-│   └── smoke-tests.md
-├── n8n-mirror/
-│   ├── docker-compose.yml
-│   └── workflows/
-│       ├── vozdocliente-router-v0.json
-│       ├── vozdocliente-router-v1.json
-│       ├── vozdocliente-router-v2.json
-│       ├── vozdocliente-router-v3.json
-│       └── vozdocliente-router-v4.json
-├── tests/
-│   ├── validate_workflows.py
-│   ├── test_routing_logic.py
-│   ├── test_pii_sanitization.cjs
-│   ├── test_pii_classification.py
-│   ├── test_workflow_security.py
-│   └── fixtures/pii_semantic_cases.json
-├── workflows/
-│   └── vozdocliente-make-blueprint.json
-├── Dockerfile
-├── .env.example
-├── CHANGELOG.md
-└── README.md
-```
-
-## Arquitetura e decisões
-
-A evolução arquitetural está documentada em:
-
-```text
-docs/auditoria-prototipo.md
-docs/matriz-decisao-stack.md
-docs/architecture/c4-context.md
-docs/architecture/c4-container.md
-docs/adr/ADR-001-stack.md
-docs/adr/ADR-002-deploy-e-ambientes.md
-```
-
-## Segurança
-
-A documentação de LGPD da Etapa 2 distingue controles presentes no código,
-evidências offline e validações jurídicas/operacionais ainda pendentes:
-
-- [Mapa de dados pessoais](docs/lgpd/mapa-dados-pessoais.md): categorias,
-  operações, finalidade, hipóteses legais e papéis a validar.
-- [Transferência internacional](docs/lgpd/transferencia-internacional.md):
-  análise por fornecedor, LGPD/ANPD e dossiê contratual pendente.
-- [Rotação de credenciais](docs/security/rotacao-credenciais.md): procedimentos
-  por provedor, diferença entre tokens, DEK e `N8N_ENCRYPTION_KEY`, rollback e Git.
-- [Checklist da Etapa 2](docs/lgpd/checklist-etapa-2.md) e
-  [roteiro de evidências para apresentação](docs/lgpd/roteiro-evidencias.md).
-
-O exercício de rotação usa somente estados fictícios e não acessa provedores,
-cofres ou `.env` reais. Para verificar a evidência já gerada:
-
-```powershell
+node tests/test_retention_schema_diagnostic.cjs
+node tests/test_observability.cjs
+node tests/test_router_optimization.cjs
+node tests/test_router_observability.cjs
 python scripts/simular_rotacao_credenciais.py --verify docs/security/evidencias/rotacao-simulada.json
+git diff --check
 ```
 
-Foram aprovados 38 cenários simulados. Isso não comprova rotação real, criptografia
-n8n ou conformidade integral com a LGPD. Contratos, bases legais, regiões efetivas,
-titularidade corporativa e responsáveis nomeados continuam sujeitos à validação.
-O briefing fixa máximo de 90 dias para logs; os prazos demonstrativos de 30 dias
-das reviews e sete dias do histórico n8n têm escopos diferentes.
+O benchmark pode ser repetido separadamente, sem outras suítes concorrentes:
+`node scripts/benchmark_router_optimization.cjs`. Sem `--write`, não sobrescreve
+as amostras entregues. Logs e relatórios de simulação não comprovam latência real,
+recebimento Slack ou qualidade humana. A [auditoria da entrega](docs/entrega-etapa-2.md)
+registra resultados, arquivos candidatos e bloqueios de publicação.
 
-Secrets e credenciais não devem ser armazenados no repositório.
+## CI e segurança antes de publicar
 
-Arquivos `.env` são ignorados pelo Git e o projeto mantém apenas `.env.example`.
+O único workflow GitHub Actions é `.github/workflows/ci.yml`: testes offline,
+sem job de deploy, secrets de provedores, Docker build/run ou chamadas às APIs do
+produto. Token limitado a `contents: read`. Dispara em push para `main`, PR com
+base `main` e execução manual; **push apenas para `etapa-2` não dispara esse CI**.
+Checkout e setup dos runtimes acessam infraestrutura do GitHub, não PROD.
 
-A separação de credenciais DEV/PROD é prevista na arquitetura; sua aplicação,
-titularidade e escopos precisam ser confirmados nas contas, sem revelar valores.
+Autodeploy de uma integração Railway/GitHub App é independente do YAML. Seu
+estado não foi confirmado; indisponibilidade por fim do período gratuito não
+comprova que gatilhos estejam desabilitados. Conferir manualmente source branch,
+autodeploy, webhooks, apps e deploy hooks antes de autorizar publicação. Não houve
+commit, push, merge, force push, alteração externa ou deploy nesta preparação.
 
-Exemplos de informações que não devem ser commitadas:
+`.env` reais, ferramenta Gitleaks baixada, relatórios brutos de scanner e coletas
+`router-local*` ficam ignorados. Uma captura local de retenção com preview de IDs
+foi excluída da lista de publicação. Gitleaks verifica segredos, não garante
+anonimização de imagens ou ausência de todos os dados pessoais no histórico.
 
-```text
-OpenAI API keys
-Airtable Personal Access Tokens
-Slack Bot Tokens
-N8N_ENCRYPTION_KEY
-```
+## Documentação
 
-## Histórico
+- [Índice e classificação dos documentos](docs/README.md).
+- [Sanitização PII](docs/etapa-2-sanitizacao-pii.md),
+  [schema Airtable](docs/airtable-schema.md) e
+  [diagnóstico de schema](docs/diagnostico-schema-retencao.md).
+- [Retenção e exclusão](docs/etapa-2-retencao-exclusao.md),
+  [observabilidade de retenção](docs/etapa-2-observabilidade.md) e
+  [observabilidade Router experimental](docs/etapa-2-observabilidade-router.md).
+- [Mapa LGPD](docs/lgpd/mapa-dados-pessoais.md),
+  [transferência internacional](docs/lgpd/transferencia-internacional.md),
+  [rotação de credenciais](docs/security/rotacao-credenciais.md),
+  [checklist](docs/lgpd/checklist-etapa-2.md) e
+  [roteiro de apresentação](docs/lgpd/roteiro-evidencias.md).
 
-O projeto partiu de um protótipo herdado baseado em Make.com.
-
-A evolução preservou a finalidade original do sistema, mas adicionou:
-
-- n8n como orquestrador principal;
-- ambiente de desenvolvimento local;
-- ambiente público de produção;
-- separação DEV/PROD;
-- validação defensiva da resposta do LLM;
-- deduplicação;
-- versionamento do workflow;
-- testes automatizados;
-- CI/CD;
-- deploy no Railway;
-- documentação arquitetural.
-
-O blueprint original do Make.com foi mantido em `workflows/` para preservar o histórico e permitir rastreabilidade da evolução.
+Contratos, bases legais, papéis, regiões de processamento, prazos e responsáveis
+continuam sujeitos à validação operacional/jurídica. Os documentos históricos de
+arquitetura, smoke tests, deploy e rollback preservam o contexto da Etapa 1;
+não são instruções para reativar ou testar produção nesta entrega.

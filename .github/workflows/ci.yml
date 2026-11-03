@@ -9,6 +9,9 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   tests:
     name: Validate VozDoCliente
@@ -45,3 +48,21 @@ jobs:
 
       - name: Test retention with synthetic Airtable responses (offline)
         run: node tests/test_retention.cjs
+
+      - name: Test retention schema diagnostic (offline)
+        run: node tests/test_retention_schema_diagnostic.cjs
+
+      - name: Test DEV observability (offline)
+        run: node tests/test_observability.cjs
+
+      - name: Check optimized v4 DEV export
+        run: python scripts/build_router_optimized_workflow.py --check
+
+      - name: Test early deduplication and classification equivalence (offline)
+        run: node tests/test_router_optimization.cjs
+
+      - name: Check Router observability exports (offline)
+        run: python scripts/build_router_observability.py --check
+
+      - name: Test Router observability and safe failures (offline)
+        run: node tests/test_router_observability.cjs

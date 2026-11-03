@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "scope": "OFFLINE_GRAPH_HARNESS",
+  "measured_at_utc": "2026-11-03T02:42:44.384Z",
+  "runtime": {
+    "node": "v25.5.0",
+    "platform": "win32",
+    "arch": "x64"
+  },
+  "real_external_api_calls": 0,
+  "real_llm_calls": 0,
+  "real_n8n_engine": false,
+  "remote_llm_latency_ms": null,
+  "production_latency_ms": null,
+  "artificial_delays": false,
+  "methodology": {
+    "trials": 9,
+    "warmup_batches_per_variant": 1,
+    "alternating_order": true,
+    "sequential_events": true,
+    "store_reset_every_batch": true,
+    "mock_llm": "deterministic_fixture_lookup",
+    "timing": "performance.now",
+    "post_llm_dedup_preserved": true,
+    "includes": "VM/expression/code/memory-transport execution of exported graph; no network/server latency"
+  },
+  "sources": {
+    "benchmark_sha256": "6bb6225dacaefa7d7e952045b0ed67c5e673003ded3ac902827a0fd8977d0c81",
+    "harness_sha256": "ce6ff63cbb1cf627449311bb3794d376433be02e1a2b71d6696bb7e511a352b8"
+  },
+  "workload": {
+    "events": 120,
+    "unique_review_ids": 30,
+    "sha256": "9f53162f1efeb87a22bca1636fe16412f0088da1e28f7d441f808515b4fec8b4"
+  },
+  "workflows": {
+    "before": {
+      "file": "vozdocliente-router-v4.json",
+      "sha256": "db97a891f9ab05e3657ed74d986f0dedb0cf657871f94d2d490e79f8b17dca1f"
+    },
+    "after": {
+      "file": "vozdocliente-router-v4-otimizado-dev.json",
+      "sha256": "70552f22bf0456cfccc3b91bf5f2c374e45e655591306d093c610daa9f94894a"
+    }
+  },
+  "simulated_calls": {
+    "before": {
+      "llm": 120,
+      "lookup": 120,
+      "create": 30,
+      "slack": 20
+    },
+    "after": {
+      "llm": 30,
+      "lookup": 150,
+      "create": 30,
+      "slack": 20
+    }
+  },
+  "llm_calls_avoided": 90,
+  "llm_calls_reduction_percent": 75,
+  "offline_wall_clock": {
+    "before": {
+      "samples_batch_ms": [
+        434.341,
+        428.316,
+        452.863,
+        525.778,
+        488.217,
+        466.773,
+        442.934,
+        442.123,
+        446.538
+      ],
+      "mean_batch_ms": 458.654,
+      "median_batch_ms": 446.538,
+      "p95_batch_ms": 525.778
+    },
+    "after": {
+      "samples_batch_ms": [
+        517.271,
+        511.902,
+        572.19,
+        585.757,
+        562.756,
+        550.428,
+        526.67,
+        556.454,
+        615.576
+      ],
+      "mean_batch_ms": 555.445,
+      "median_batch_ms": 556.454,
+      "p95_batch_ms": 615.576
+    }
+  },
+  "quality": {
+    "saved_reviews_identical": true,
+    "identical_reviews": 30,
+    "slack_texts_identical": true,
+    "sanitizer_prompt_parser_unchanged": true
+  }
+}

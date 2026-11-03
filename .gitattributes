@@ -1,0 +1,7 @@
+# Evidencias novas: preservar os bytes dos hashes tambem em clones Windows.
+/n8n-mirror/workflows/vozdocliente-router-v4-observavel-dev.json text eol=lf
+/n8n-mirror/workflows/vozdocliente-observabilidade-router-dev.json text eol=lf
+/n8n-mirror/workflows/vozdocliente-erros-router-dev.json text eol=lf
+/docs/evidencias/router-observabilidade-simulacao.ndjson text eol=lf
+/docs/evidencias/router-observabilidade-simulacao.json text eol=lf
+/docs/evidencias/router-observabilidade-simulacao.html text eol=lf

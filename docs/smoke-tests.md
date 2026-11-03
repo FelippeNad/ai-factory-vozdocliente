@@ -1,5 +1,7 @@
 # Smoke Tests — VozDoCliente
 
+> Registro histórico da Etapa 1. O deploy Railway está indisponível após o período gratuito; os resultados e endpoints abaixo não comprovam funcionamento atual e não devem ser usados nesta entrega. Não repetir chamadas de produção. O README distingue validação DEV, offline e experimental.
+
 ## Objetivo
 
 Validar o funcionamento do fluxo principal do VozDoCliente no ambiente de produção publicado no Railway.

@@ -1,5 +1,7 @@
 # ADR-002 — Estratégia de deploy e separação de ambientes
 
+> Atualização da entrega (03/11/2026): registro histórico, não autorização ou instrução de deploy. Railway está indisponível após o período gratuito. Autodeploy/source branch/webhooks ainda exigem conferência manual; nenhuma configuração externa foi alterada. O Actions versionado só testa offline, separado da integração direta Railway/GitHub.
+
 ## Status
 
 Aceito

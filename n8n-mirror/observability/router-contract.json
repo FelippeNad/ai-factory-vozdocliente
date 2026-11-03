@@ -1,0 +1,10 @@
+{
+  "schema": "vozdocliente.router.observability.v1",
+  "stages": ["received", "sanitization", "precheck", "llm", "final_dedup", "persistence", "business_slack", "run", "unknown", "telemetry"],
+  "statuses": ["started", "success", "duplicate", "failure"],
+  "sources": ["n8n", "offline_simulation"],
+  "codes": ["NONE", "SANITIZATION_FAILED", "DEV_CONFIG_INVALID", "PRECHECK_HTTP_FAILED", "PRECHECK_INVALID", "LLM_HTTP_FAILED", "CLASSIFICATION_INVALID", "FINAL_DEDUP_HTTP_FAILED", "FINAL_DEDUP_INVALID", "PERSISTENCE_HTTP_FAILED", "BUSINESS_SLACK_FAILED", "WORKFLOW_INTERRUPTED", "OBS_DELIVERY_FAILED"],
+  "counters": ["runs_total", "runs_success", "runs_duplicate", "runs_failure", "received", "persisted", "llm_calls_attempted", "llm_responses", "classification_valid", "prompt_tokens", "completion_tokens"],
+  "measures": ["estimated_cost_usd"],
+  "fields": ["schema", "event_id", "run_id", "correlation", "at", "source", "kind", "stage", "status", "duration_ms", "error_code", "metrics"]
+}

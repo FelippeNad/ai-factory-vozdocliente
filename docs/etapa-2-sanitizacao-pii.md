@@ -1,5 +1,10 @@
 # Etapa 2 — sanitização de PII antes do LLM
 
+Atualização da entrega: o responsável informou validação da sanitização no n8n
+local e dos três cenários do Router otimizado DEV. As pendências históricas abaixo
+descrevem a implementação original; não invalidam essa validação informada nem
+comprovam implantação em produção.
+
 Complemento documental após `718ce4d`: [mapa LGPD](lgpd/mapa-dados-pessoais.md),
 [transferências internacionais](lgpd/transferencia-internacional.md),
 [checklist](lgpd/checklist-etapa-2.md) e [roteiro de evidências](lgpd/roteiro-evidencias.md).

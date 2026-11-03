@@ -1,5 +1,7 @@
 # Arquitetura C4 — Nível 2: Containers
 
+> Escopo histórico: o diagrama representa a arquitetura de produção da Etapa 1, indisponível após o período gratuito do Railway segundo o responsável. Não comprova disponibilidade atual. A demonstração da Etapa 2 usa Router otimizado DEV local e retenção DRY_RUN; observabilidade integrada do Router permanece experimental.
+
 ## Visão geral
 
 O VozDoCliente é implementado com um workflow principal em n8n, responsável por receber avaliações, consultar um modelo de linguagem, persistir os resultados e enviar alertas quando necessário.

@@ -37,6 +37,12 @@ antes de selecionar registros por `processed_at`. O padrão é DRY_RUN com prazo
 demonstrativo de 30 dias. O schema de `Reviews` permanece inalterado; a rotina
 não detecta tratativas abertas nem deveres de preservação automaticamente.
 
+A seleção da tabela de retenção permanece por `RETENTION_TABLE_ID` na base
+`RETENTION_DEV_BASE_ID`; seu nome precisa corresponder exatamente a
+`RETENTION_TABLE_NAME` (padrão `Reviews`). Para a tabela isolada existente, configurar
+`ReviewsRetentionTest`, sem renomeá-la. A auditoria continua exigindo o nome fixo
+`RetentionAudit` e todos os 18 pares obrigatórios de nome/tipo.
+
 Criar na base DEV uma tabela separada `RetentionAudit`, com campos agregados,
 conforme [política, schema da auditoria e demonstração](etapa-2-retencao-exclusao.md).
 Ela não recebe nomes, texto ou IDs individuais das reviews e não é criada

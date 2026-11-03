@@ -1,0 +1,103 @@
+{
+  "scope": "SIMULACAO_OFFLINE",
+  "real_n8n_engine": false,
+  "real_external_calls": 0,
+  "real_llm_calls": 0,
+  "real_slack_delivery": false,
+  "events": 23,
+  "simulated_llm_calls": 1,
+  "simulated_alerts": 1,
+  "node": "v24.22.1",
+  "platform": "win32",
+  "generated_at": "2026-11-03T04:29:10.634Z",
+  "terminal_events": [
+    {
+      "schema": "vozdocliente.router.observability.v1",
+      "event_id": "router-600001:run:run:success",
+      "run_id": "router-600001",
+      "correlation": "execution",
+      "at": "2026-11-03T04:29:10.609Z",
+      "source": "offline_simulation",
+      "kind": "run",
+      "stage": "run",
+      "status": "success",
+      "duration_ms": 31,
+      "error_code": "NONE",
+      "metrics": {
+        "runs_total": 1,
+        "runs_success": 1,
+        "runs_duplicate": 0,
+        "runs_failure": 0,
+        "received": 1,
+        "persisted": 1,
+        "llm_calls_attempted": 1,
+        "llm_responses": 1,
+        "classification_valid": 1,
+        "prompt_tokens": 100,
+        "completion_tokens": 20,
+        "estimated_cost_usd": null
+      }
+    },
+    {
+      "schema": "vozdocliente.router.observability.v1",
+      "event_id": "router-600002:run:run:duplicate",
+      "run_id": "router-600002",
+      "correlation": "execution",
+      "at": "2026-11-03T04:29:10.620Z",
+      "source": "offline_simulation",
+      "kind": "run",
+      "stage": "run",
+      "status": "duplicate",
+      "duration_ms": 5,
+      "error_code": "NONE",
+      "metrics": {
+        "runs_total": 1,
+        "runs_success": 0,
+        "runs_duplicate": 1,
+        "runs_failure": 0,
+        "received": 1,
+        "persisted": 0,
+        "llm_calls_attempted": 0,
+        "llm_responses": 0,
+        "classification_valid": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "estimated_cost_usd": 0
+      }
+    },
+    {
+      "schema": "vozdocliente.router.observability.v1",
+      "event_id": "router-600003:run:precheck:failure",
+      "run_id": "router-600003",
+      "correlation": "execution",
+      "at": "2026-11-03T04:29:10.628Z",
+      "source": "offline_simulation",
+      "kind": "run",
+      "stage": "precheck",
+      "status": "failure",
+      "duration_ms": 3,
+      "error_code": "PRECHECK_HTTP_FAILED",
+      "metrics": {
+        "runs_total": 1,
+        "runs_success": 0,
+        "runs_duplicate": 0,
+        "runs_failure": 1,
+        "received": 1,
+        "persisted": 0,
+        "llm_calls_attempted": 0,
+        "llm_responses": 0,
+        "classification_valid": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "estimated_cost_usd": 0
+      }
+    }
+  ],
+  "events_sha256": "d7a6f52913a655a66092c2fa53b4cbbda864154c5e8928151952de674b8fcaf4",
+  "workflow_sha256": {
+    "vozdocliente-router-v4-observavel-dev.json": "f0e3e038b506a7cb16d2cc4b62a2ffd5d70fd3021635ab2f0acb2c4a5c998d80",
+    "vozdocliente-observabilidade-router-dev.json": "87de59e0a93eb2fb5e634c506c5d4a569c8119107dd1d500b2f47a0c54d49831",
+    "vozdocliente-erros-router-dev.json": "df922a2b2f0f1f8099803742593ebafa33e1f316322c6aa55b90b9083b1e8e6f"
+  },
+  "note": "Tempos do harness local com mocks imediatos; nao sao latencias do n8n, Airtable ou LLM."
+}

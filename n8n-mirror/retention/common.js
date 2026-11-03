@@ -10,6 +10,14 @@ const AUDIT_TYPES = {
   ...Object.fromEntries(METRICS.map(key => [key, 'number'])),
 };
 
+function expectedTableName(value) {
+  // Ausencia preserva compatibilidade; valor explicitamente vazio/invalido bloqueia.
+  const name = value === undefined ? 'Reviews' : value;
+  if (typeof name !== 'string' || name.length === 0 || name.length > 255 || name.trim() !== name ||
+      /[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/u.test(name)) throw Error('CONFIG');
+  return name;
+}
+
 function settings(env) {
   const integer = (key, fallback, max) => {
     const value = env[key] === undefined || env[key] === '' ? String(fallback) : env[key];
@@ -21,6 +29,7 @@ function settings(env) {
   if (!['true', 'false'].includes(dry) || env.RETENTION_ENV !== 'DEV') throw Error('CONFIG');
   const base = env.RETENTION_DEV_BASE_ID;
   const table = env.RETENTION_TABLE_ID;
+  const tableName = expectedTableName(env.RETENTION_TABLE_NAME);
   const auditTable = env.RETENTION_AUDIT_TABLE_ID;
   if (!/^app[A-Za-z0-9]{14}$/.test(base || '') || !/^tbl[A-Za-z0-9]{14}$/.test(table || '') ||
       !/^tbl[A-Za-z0-9]{14}$/.test(auditTable || '') || table === auditTable) throw Error('CONFIG');
@@ -28,7 +37,7 @@ function settings(env) {
   if (protectedBases.some(id => !/^app[A-Za-z0-9]{14}$/.test(id)) || protectedBases.includes(base)) throw Error('CONFIG');
   if (dry === 'false' && (!protectedBases.length || env.RETENTION_CONFIRM_DEV_BASE_ID !== base ||
       env.RETENTION_DELETE_CONFIRMATION !== 'DELETE_DEV_EXPIRED_REVIEWS')) throw Error('CONFIG');
-  return { environment: 'DEV', dry_run: dry === 'true', base, table, auditTable,
+  return { environment: 'DEV', dry_run: dry === 'true', base, table, tableName, auditTable,
     days: integer('RETENTION_DAYS', 30, 3650),
     pageSize: integer('RETENTION_PAGE_SIZE', 100, 100),
     maxPages: integer('RETENTION_MAX_PAGES', 10, 50),
@@ -108,9 +117,11 @@ function nextCandidate(s) {
 
 function checkSchema(body, config) {
   if (!body || !Array.isArray(body.tables)) return false;
+  if (typeof config?.tableName !== 'string') return false;
+  try { expectedTableName(config.tableName); } catch { return false; }
   const reviews = body.tables.find(table => table.id === config.table);
   const audit = body.tables.find(table => table.id === config.auditTable);
-  if (reviews?.name !== 'Reviews' || audit?.name !== 'RetentionAudit') return false;
+  if (reviews?.name !== config.tableName || audit?.name !== 'RetentionAudit') return false;
   if (!Array.isArray(reviews.fields) || !Array.isArray(audit.fields)) return false;
   if (reviews.fields.filter(field => field.name === 'processed_at' && field.type === 'dateTime').length !== 1) return false;
   return Object.entries(AUDIT_TYPES).every(([name, type]) =>

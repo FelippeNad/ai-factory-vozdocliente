@@ -1,5 +1,7 @@
 # Teste de Rollback — VozDoCliente
 
+> Registro histórico de um ensaio anterior, não estado atual. Railway está indisponível após o período gratuito. Não executar redeploy/rollback nesta entrega; source branch, autodeploy e integrações exigem revisão manual antes de qualquer publicação.
+
 Relato histórico de rollback de deployment. Ele não comprova restauração de dados
 excluídos, recuperação criptográfica ou validade de token revogado. A Etapa 2
 documenta essas diferenças em [rotação de credenciais](security/rotacao-credenciais.md)

@@ -1,0 +1,180 @@
+{
+  "name": "VozDoCliente - Observabilidade Router DEV",
+  "nodes": [
+    {
+      "name": "Receber evento Router DEV",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "parameters": {},
+      "position": [
+        0,
+        0
+      ],
+      "id": "6bb066f5-2042-5372-be73-36f73ab6b702"
+    },
+    {
+      "name": "Observabilidade DEV",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const OBS_CONTRACT = {\"schema\": \"vozdocliente.router.observability.v1\", \"stages\": [\"received\", \"sanitization\", \"precheck\", \"llm\", \"final_dedup\", \"persistence\", \"business_slack\", \"run\", \"unknown\", \"telemetry\"], \"statuses\": [\"started\", \"success\", \"duplicate\", \"failure\"], \"sources\": [\"n8n\", \"offline_simulation\"], \"codes\": [\"NONE\", \"SANITIZATION_FAILED\", \"DEV_CONFIG_INVALID\", \"PRECHECK_HTTP_FAILED\", \"PRECHECK_INVALID\", \"LLM_HTTP_FAILED\", \"CLASSIFICATION_INVALID\", \"FINAL_DEDUP_HTTP_FAILED\", \"FINAL_DEDUP_INVALID\", \"PERSISTENCE_HTTP_FAILED\", \"BUSINESS_SLACK_FAILED\", \"WORKFLOW_INTERRUPTED\", \"OBS_DELIVERY_FAILED\"], \"counters\": [\"runs_total\", \"runs_success\", \"runs_duplicate\", \"runs_failure\", \"received\", \"persisted\", \"llm_calls_attempted\", \"llm_responses\", \"classification_valid\", \"prompt_tokens\", \"completion_tokens\"], \"measures\": [\"estimated_cost_usd\"], \"fields\": [\"schema\", \"event_id\", \"run_id\", \"correlation\", \"at\", \"source\", \"kind\", \"stage\", \"status\", \"duration_ms\", \"error_code\", \"metrics\"]};\n// OBS_CONTRACT e injetado pelo gerador. Nunca inspecionar mensagens/headers externos.\nconst obsClone = value => JSON.parse(JSON.stringify(value));\nconst obsCount = value => Number.isSafeInteger(value) && value >= 0 && value <= 1e12 ? value : null;\nconst obsDuration = start => Number.isFinite(start) && Date.now() >= start ? Date.now() - start : null;\nfunction obsContext(previous) {\n  const ctx = obsClone(previous ? $(previous).first().json._obs : $input.first().json._obs);\n  if (!ctx || !/^router-\\d{1,30}$/.test(ctx.run_id)) throw new Error('Contexto de observabilidade invalido.');\n  return ctx;\n}\nfunction obsPrice(value) {\n  if (typeof value !== 'string' || !/^(?:0|[1-9]\\d*)(?:\\.\\d{1,8})?$/.test(value)) return null;\n  const number = Number(value);\n  return number > 0 && number <= 1e6 ? number : null;\n}\nfunction obsUsage(ctx) {\n  const usage = $('LLM DEV').first().json.usage;\n  ctx.llm_responses = 1;\n  ctx.prompt_tokens = obsCount(usage?.prompt_tokens);\n  ctx.completion_tokens = obsCount(usage?.completion_tokens);\n  return ctx;\n}\nfunction obsMetrics(ctx, terminal, status) {\n  const inputPrice = obsPrice($env.OBS_LLM_INPUT_USD_PER_MILLION);\n  const outputPrice = obsPrice($env.OBS_LLM_OUTPUT_USD_PER_MILLION);\n  const cost = ctx.llm_calls_attempted === 0 ? 0\n    : ctx.prompt_tokens !== null && ctx.completion_tokens !== null && inputPrice !== null && outputPrice !== null\n      ? (ctx.prompt_tokens * inputPrice + ctx.completion_tokens * outputPrice) / 1e6 : null;\n  return { runs_total: terminal ? 1 : 0, runs_success: terminal && status === 'success' ? 1 : 0,\n    runs_duplicate: terminal && status === 'duplicate' ? 1 : 0, runs_failure: terminal && status === 'failure' ? 1 : 0,\n    received: terminal ? Object.prototype.hasOwnProperty.call(ctx, 'received') ? ctx.received : 1 : 0,\n    persisted: ctx.persisted, llm_calls_attempted: ctx.llm_calls_attempted,\n    llm_responses: ctx.llm_responses, classification_valid: ctx.classification_valid,\n    prompt_tokens: ctx.prompt_tokens, completion_tokens: ctx.completion_tokens, estimated_cost_usd: cost };\n}\nfunction obsCanonical(raw) {\n  const invalid = () => { throw new Error('Evento de observabilidade invalido.'); };\n  const exact = (value, keys) => value && typeof value === 'object' && !Array.isArray(value)\n    && Object.keys(value).sort().join('|') === [...keys].sort().join('|');\n  if (!exact(raw, OBS_CONTRACT.fields) || raw.schema !== OBS_CONTRACT.schema\n      || !/^router-(?:\\d{1,30}|error-\\d{1,30})$/.test(raw.run_id)\n      || !['execution', 'error_handler'].includes(raw.correlation)\n      || (raw.correlation === 'error_handler') !== raw.run_id.startsWith('router-error-')\n      || !OBS_CONTRACT.sources.includes(raw.source) || !['stage', 'run'].includes(raw.kind)\n      || !OBS_CONTRACT.stages.includes(raw.stage) || !OBS_CONTRACT.statuses.includes(raw.status)\n      || !OBS_CONTRACT.codes.includes(raw.error_code)\n      || raw.event_id !== [raw.run_id, raw.kind, raw.stage, raw.status].join(':')\n      || typeof raw.at !== 'string' || !/^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d\\.\\d{3}Z$/.test(raw.at)\n      || !Number.isFinite(Date.parse(raw.at)) || new Date(raw.at).toISOString() !== raw.at\n      || !(raw.duration_ms === null || Number.isSafeInteger(raw.duration_ms) && raw.duration_ms >= 0 && raw.duration_ms <= 1e12)\n      || raw.kind === 'run' && raw.status === 'started'\n      || (raw.status === 'failure') !== (raw.error_code !== 'NONE')\n      || !exact(raw.metrics, [...OBS_CONTRACT.counters, ...OBS_CONTRACT.measures])) invalid();\n  for (const key of OBS_CONTRACT.counters) if (!(raw.metrics[key] === null || obsCount(raw.metrics[key]) !== null)) invalid();\n  const cost = raw.metrics.estimated_cost_usd;\n  if (!(cost === null || typeof cost === 'number' && Number.isFinite(cost) && cost >= 0 && cost <= 1e12)) invalid();\n  if (raw.metrics.classification_valid !== null && raw.metrics.llm_responses !== null\n      && raw.metrics.classification_valid > raw.metrics.llm_responses) invalid();\n  if (raw.metrics.llm_responses !== null && raw.metrics.llm_calls_attempted !== null\n      && raw.metrics.llm_responses > raw.metrics.llm_calls_attempted) invalid();\n  if (raw.metrics.runs_total !== (raw.kind === 'run' ? 1 : 0)\n      || raw.metrics.runs_success !== (raw.kind === 'run' && raw.status === 'success' ? 1 : 0)\n      || raw.metrics.runs_duplicate !== (raw.kind === 'run' && raw.status === 'duplicate' ? 1 : 0)\n      || raw.metrics.runs_failure !== (raw.kind === 'run' && raw.status === 'failure' ? 1 : 0)) invalid();\n  return obsClone(raw);\n}\nfunction obsEmit(ctx, stage, status, code = 'NONE', terminal = false) {\n  const report = obsCanonical({ schema: OBS_CONTRACT.schema,\n    event_id: [ctx.run_id, terminal ? 'run' : 'stage', stage, status].join(':'),\n    run_id: ctx.run_id, correlation: ctx.run_id.startsWith('router-error-') ? 'error_handler' : 'execution', at: new Date().toISOString(),\n    source: $execution.mode === 'offline_simulation' ? 'offline_simulation' : 'n8n',\n    kind: terminal ? 'run' : 'stage', stage, status,\n    duration_ms: obsDuration(terminal ? ctx.started_ms : ctx.stage_ms[stage]),\n    error_code: code, metrics: obsMetrics(ctx, terminal, status) });\n  console.log(JSON.stringify(report));\n  return report;\n}\nfunction obsStart() {\n  const id = String($execution.id);\n  if (!/^\\d{1,30}$/.test(id)) throw new Error('Identificador de execucao invalido.');\n  const ctx = { run_id: 'router-' + id, started_ms: Date.now(), stage_ms: { received: Date.now(), sanitization: Date.now() },\n    persisted: 0, llm_calls_attempted: 0, llm_responses: 0, classification_valid: 0, prompt_tokens: 0, completion_tokens: 0 };\n  obsEmit(ctx, 'received', 'success');\n  obsEmit(ctx, 'sanitization', 'started');\n  return [{ json: { ...$input.first().json, _obs: ctx }, pairedItem: { item: 0 } }];\n}\nfunction obsStep(stage, status, previous) {\n  const ctx = obsContext(previous);\n  if (status === 'started') {\n    ctx.stage_ms[stage] = Date.now();\n    if (stage === 'llm') {\n      ctx.llm_calls_attempted = 1; ctx.prompt_tokens = null; ctx.completion_tokens = null;\n    }\n  }\n  if (stage === 'llm' && status === 'success') { obsUsage(ctx); ctx.classification_valid = 1; }\n  if (stage === 'persistence' && status === 'success') ctx.persisted = 1;\n  obsEmit(ctx, stage, status);\n  return [{ json: { ...$input.first().json, _obs: ctx }, pairedItem: { item: 0 } }];\n}\nfunction obsFinish(status, previous, stage = 'run', code = 'NONE', responseReceived = false) {\n  const ctx = obsContext(previous);\n  if (responseReceived) obsUsage(ctx);\n  const report = obsEmit(ctx, stage, status, code, true);\n  // Apenas o evento permitido sai para outro workflow; nenhum payload de negocio.\n  return [{ json: { report }, pairedItem: { item: 0 } }];\n}\nfunction obsDelivery() {\n  const report = obsCanonical($input.first().json.report);\n  const id = $env.ROUTER_OBSERVER_WORKFLOW_ID;\n  const configured = $env.CLASSIFIER_ENV === 'DEV' && typeof id === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(id);\n  return [{ json: { report, send_observation: configured, observer_workflow_id: configured ? id : null }, pairedItem: { item: 0 } }];\n}\n\nconst report = obsCanonical($input.first().json.report);\nlet alertStatus = 'not_needed', alertError = null, slackBody = null;\nif (report.status === 'failure') {\n  const channel = $env.CLASSIFIER_SLACK_DEV_CHANNEL_ID;\n  if ($env.ROUTER_ALERTS_ENABLED !== 'true') alertStatus = 'disabled';\n  else if ($env.CLASSIFIER_ENV !== 'DEV' || typeof channel !== 'string'\n      || channel.trim() !== channel || !/^[CG][A-Z0-9]{8,31}$/.test(channel)) {\n    alertStatus = 'blocked'; alertError = 'ALERT_CONFIG_INVALID';\n  } else {\n    alertStatus = 'pending';\n    slackBody = { channel, mrkdwn: false, unfurl_links: false, unfurl_media: false,\n      text: '[DEV][P1] VozDoCliente Router: falha. run_id=' + report.run_id\n        + '; stage=' + report.stage + '; error_code=' + report.error_code\n        + '; llm_calls_attempted=' + (report.metrics.llm_calls_attempted ?? 'unknown')\n        + '; duration_ms=' + (report.duration_ms ?? 'unknown') };\n  }\n}\n// Formato compativel com observe-result.js da retencao, reutilizado sem alteracoes.\nreturn [{ json: { summary: { report }, event: { run_id: report.run_id, stage: report.stage,\n  status: report.status, duration_ms: report.duration_ms, error_code: report.error_code },\n  metrics: report.metrics, send_alert: slackBody !== null, slack_body: slackBody,\n  alert_status: alertStatus, alert_error_code: alertError, alert_started_ms: Date.now() }, pairedItem: { item: 0 } }];\n"
+      },
+      "position": [
+        260,
+        0
+      ],
+      "id": "362249e4-80ed-5e36-8ac2-08b8137af523"
+    },
+    {
+      "name": "Alertar falha DEV?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "alert",
+              "leftValue": "={{ $json.send_alert }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "position": [
+        520,
+        0
+      ],
+      "id": "2a00d837-cdbe-5f17-8c27-ff41985400fd"
+    },
+    {
+      "name": "Slack DEV falha",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/chat.postMessage",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.slack_body) }}",
+        "options": {
+          "timeout": 5000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "position": [
+        780,
+        0
+      ],
+      "id": "ba0e9b86-2cb4-5bd4-a1cf-aa76bc933696",
+      "onError": "continueRegularOutput",
+      "retryOnFail": false
+    },
+    {
+      "name": "Resultado observabilidade",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const previous = $('Observabilidade DEV').item.json;\nconst response = $input.first().json;\nconst simulated = false; // Substituido SOMENTE no export DEMO pelo gerador.\nlet alertStatus = previous.alert_status, alertError = previous.alert_error_code;\nif (previous.send_alert) {\n  const ok = Number.isInteger(response.statusCode) && response.statusCode >= 200\n    && response.statusCode < 300 && response.body?.ok === true;\n  alertStatus = ok ? (simulated ? 'simulated' : 'sent') : 'failed';\n  alertError = ok ? null : 'SLACK_DELIVERY_FAILED';\n}\nif (previous.send_alert || alertError) {\n  console.log({ run_id: previous.event.run_id, stage: 'slack_alert',\n    status: alertError ? 'failure' : 'success',\n    duration_ms: Math.max(0, Date.now() - previous.alert_started_ms), error_code: alertError || 'NONE' });\n}\n// Nao propaga resposta Slack, mensagem do provedor, destino ou payload do alerta.\nreturn [{ json: { ...previous.summary, observability: { event: previous.event, metrics: previous.metrics,\n  alert_status: alertStatus, alert_error_code: alertError } }, pairedItem: { item: 0 } }];\n"
+      },
+      "position": [
+        1040,
+        0
+      ],
+      "id": "02932379-77ce-5596-8956-c048554244c7"
+    }
+  ],
+  "connections": {
+    "Receber evento Router DEV": {
+      "main": [
+        [
+          {
+            "node": "Observabilidade DEV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Observabilidade DEV": {
+      "main": [
+        [
+          {
+            "node": "Alertar falha DEV?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alertar falha DEV?": {
+      "main": [
+        [
+          {
+            "node": "Slack DEV falha",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Resultado observabilidade",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack DEV falha": {
+      "main": [
+        [
+          {
+            "node": "Resultado observabilidade",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": false,
+    "saveExecutionProgress": false
+  },
+  "tags": []
+}

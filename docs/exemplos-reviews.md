@@ -1,6 +1,9 @@
 # Exemplos de avaliações — VozDoCliente
 
-Coletânea sintética (baseada em casos reais anonimizados) pra testar o roteador. Use no `curl` do `n8n-mirror/README.md` trocando o corpo, ou alimente o `tests/test_routing_logic.py`.
+Exemplos históricos do material didático. Não há nesta revisão comprovação de
+anonimização de um corpus real; essa alegação foi removida. Para demonstrar a
+Etapa 2, preferir as fixtures sintéticas controladas em `tests/fixtures/` e o
+Router DEV recomendado no README. Não usar procedimentos históricos de PROD.
 
 Cada review tem: `review_id`, `customer_name`, `source`, `rating` (1–5) e `review_text`. O esperado de `sentiment`/`theme` é a **expectativa humana** — serve de gabarito pra você comparar com o que o LLM devolve.
 

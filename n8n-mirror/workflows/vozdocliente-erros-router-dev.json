@@ -1,0 +1,189 @@
+{
+  "name": "VozDoCliente - Erros Router DEV",
+  "nodes": [
+    {
+      "name": "Erro Router DEV",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "parameters": {},
+      "position": [
+        0,
+        0
+      ],
+      "id": "a9028e2d-a9b2-523c-a0dc-aeb96cc6b82a"
+    },
+    {
+      "name": "Normalizar erro Router DEV",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const OBS_CONTRACT = {\"schema\": \"vozdocliente.router.observability.v1\", \"stages\": [\"received\", \"sanitization\", \"precheck\", \"llm\", \"final_dedup\", \"persistence\", \"business_slack\", \"run\", \"unknown\", \"telemetry\"], \"statuses\": [\"started\", \"success\", \"duplicate\", \"failure\"], \"sources\": [\"n8n\", \"offline_simulation\"], \"codes\": [\"NONE\", \"SANITIZATION_FAILED\", \"DEV_CONFIG_INVALID\", \"PRECHECK_HTTP_FAILED\", \"PRECHECK_INVALID\", \"LLM_HTTP_FAILED\", \"CLASSIFICATION_INVALID\", \"FINAL_DEDUP_HTTP_FAILED\", \"FINAL_DEDUP_INVALID\", \"PERSISTENCE_HTTP_FAILED\", \"BUSINESS_SLACK_FAILED\", \"WORKFLOW_INTERRUPTED\", \"OBS_DELIVERY_FAILED\"], \"counters\": [\"runs_total\", \"runs_success\", \"runs_duplicate\", \"runs_failure\", \"received\", \"persisted\", \"llm_calls_attempted\", \"llm_responses\", \"classification_valid\", \"prompt_tokens\", \"completion_tokens\"], \"measures\": [\"estimated_cost_usd\"], \"fields\": [\"schema\", \"event_id\", \"run_id\", \"correlation\", \"at\", \"source\", \"kind\", \"stage\", \"status\", \"duration_ms\", \"error_code\", \"metrics\"]};\n// OBS_CONTRACT e injetado pelo gerador. Nunca inspecionar mensagens/headers externos.\nconst obsClone = value => JSON.parse(JSON.stringify(value));\nconst obsCount = value => Number.isSafeInteger(value) && value >= 0 && value <= 1e12 ? value : null;\nconst obsDuration = start => Number.isFinite(start) && Date.now() >= start ? Date.now() - start : null;\nfunction obsContext(previous) {\n  const ctx = obsClone(previous ? $(previous).first().json._obs : $input.first().json._obs);\n  if (!ctx || !/^router-\\d{1,30}$/.test(ctx.run_id)) throw new Error('Contexto de observabilidade invalido.');\n  return ctx;\n}\nfunction obsPrice(value) {\n  if (typeof value !== 'string' || !/^(?:0|[1-9]\\d*)(?:\\.\\d{1,8})?$/.test(value)) return null;\n  const number = Number(value);\n  return number > 0 && number <= 1e6 ? number : null;\n}\nfunction obsUsage(ctx) {\n  const usage = $('LLM DEV').first().json.usage;\n  ctx.llm_responses = 1;\n  ctx.prompt_tokens = obsCount(usage?.prompt_tokens);\n  ctx.completion_tokens = obsCount(usage?.completion_tokens);\n  return ctx;\n}\nfunction obsMetrics(ctx, terminal, status) {\n  const inputPrice = obsPrice($env.OBS_LLM_INPUT_USD_PER_MILLION);\n  const outputPrice = obsPrice($env.OBS_LLM_OUTPUT_USD_PER_MILLION);\n  const cost = ctx.llm_calls_attempted === 0 ? 0\n    : ctx.prompt_tokens !== null && ctx.completion_tokens !== null && inputPrice !== null && outputPrice !== null\n      ? (ctx.prompt_tokens * inputPrice + ctx.completion_tokens * outputPrice) / 1e6 : null;\n  return { runs_total: terminal ? 1 : 0, runs_success: terminal && status === 'success' ? 1 : 0,\n    runs_duplicate: terminal && status === 'duplicate' ? 1 : 0, runs_failure: terminal && status === 'failure' ? 1 : 0,\n    received: terminal ? Object.prototype.hasOwnProperty.call(ctx, 'received') ? ctx.received : 1 : 0,\n    persisted: ctx.persisted, llm_calls_attempted: ctx.llm_calls_attempted,\n    llm_responses: ctx.llm_responses, classification_valid: ctx.classification_valid,\n    prompt_tokens: ctx.prompt_tokens, completion_tokens: ctx.completion_tokens, estimated_cost_usd: cost };\n}\nfunction obsCanonical(raw) {\n  const invalid = () => { throw new Error('Evento de observabilidade invalido.'); };\n  const exact = (value, keys) => value && typeof value === 'object' && !Array.isArray(value)\n    && Object.keys(value).sort().join('|') === [...keys].sort().join('|');\n  if (!exact(raw, OBS_CONTRACT.fields) || raw.schema !== OBS_CONTRACT.schema\n      || !/^router-(?:\\d{1,30}|error-\\d{1,30})$/.test(raw.run_id)\n      || !['execution', 'error_handler'].includes(raw.correlation)\n      || (raw.correlation === 'error_handler') !== raw.run_id.startsWith('router-error-')\n      || !OBS_CONTRACT.sources.includes(raw.source) || !['stage', 'run'].includes(raw.kind)\n      || !OBS_CONTRACT.stages.includes(raw.stage) || !OBS_CONTRACT.statuses.includes(raw.status)\n      || !OBS_CONTRACT.codes.includes(raw.error_code)\n      || raw.event_id !== [raw.run_id, raw.kind, raw.stage, raw.status].join(':')\n      || typeof raw.at !== 'string' || !/^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d\\.\\d{3}Z$/.test(raw.at)\n      || !Number.isFinite(Date.parse(raw.at)) || new Date(raw.at).toISOString() !== raw.at\n      || !(raw.duration_ms === null || Number.isSafeInteger(raw.duration_ms) && raw.duration_ms >= 0 && raw.duration_ms <= 1e12)\n      || raw.kind === 'run' && raw.status === 'started'\n      || (raw.status === 'failure') !== (raw.error_code !== 'NONE')\n      || !exact(raw.metrics, [...OBS_CONTRACT.counters, ...OBS_CONTRACT.measures])) invalid();\n  for (const key of OBS_CONTRACT.counters) if (!(raw.metrics[key] === null || obsCount(raw.metrics[key]) !== null)) invalid();\n  const cost = raw.metrics.estimated_cost_usd;\n  if (!(cost === null || typeof cost === 'number' && Number.isFinite(cost) && cost >= 0 && cost <= 1e12)) invalid();\n  if (raw.metrics.classification_valid !== null && raw.metrics.llm_responses !== null\n      && raw.metrics.classification_valid > raw.metrics.llm_responses) invalid();\n  if (raw.metrics.llm_responses !== null && raw.metrics.llm_calls_attempted !== null\n      && raw.metrics.llm_responses > raw.metrics.llm_calls_attempted) invalid();\n  if (raw.metrics.runs_total !== (raw.kind === 'run' ? 1 : 0)\n      || raw.metrics.runs_success !== (raw.kind === 'run' && raw.status === 'success' ? 1 : 0)\n      || raw.metrics.runs_duplicate !== (raw.kind === 'run' && raw.status === 'duplicate' ? 1 : 0)\n      || raw.metrics.runs_failure !== (raw.kind === 'run' && raw.status === 'failure' ? 1 : 0)) invalid();\n  return obsClone(raw);\n}\nfunction obsEmit(ctx, stage, status, code = 'NONE', terminal = false) {\n  const report = obsCanonical({ schema: OBS_CONTRACT.schema,\n    event_id: [ctx.run_id, terminal ? 'run' : 'stage', stage, status].join(':'),\n    run_id: ctx.run_id, correlation: ctx.run_id.startsWith('router-error-') ? 'error_handler' : 'execution', at: new Date().toISOString(),\n    source: $execution.mode === 'offline_simulation' ? 'offline_simulation' : 'n8n',\n    kind: terminal ? 'run' : 'stage', stage, status,\n    duration_ms: obsDuration(terminal ? ctx.started_ms : ctx.stage_ms[stage]),\n    error_code: code, metrics: obsMetrics(ctx, terminal, status) });\n  console.log(JSON.stringify(report));\n  return report;\n}\nfunction obsStart() {\n  const id = String($execution.id);\n  if (!/^\\d{1,30}$/.test(id)) throw new Error('Identificador de execucao invalido.');\n  const ctx = { run_id: 'router-' + id, started_ms: Date.now(), stage_ms: { received: Date.now(), sanitization: Date.now() },\n    persisted: 0, llm_calls_attempted: 0, llm_responses: 0, classification_valid: 0, prompt_tokens: 0, completion_tokens: 0 };\n  obsEmit(ctx, 'received', 'success');\n  obsEmit(ctx, 'sanitization', 'started');\n  return [{ json: { ...$input.first().json, _obs: ctx }, pairedItem: { item: 0 } }];\n}\nfunction obsStep(stage, status, previous) {\n  const ctx = obsContext(previous);\n  if (status === 'started') {\n    ctx.stage_ms[stage] = Date.now();\n    if (stage === 'llm') {\n      ctx.llm_calls_attempted = 1; ctx.prompt_tokens = null; ctx.completion_tokens = null;\n    }\n  }\n  if (stage === 'llm' && status === 'success') { obsUsage(ctx); ctx.classification_valid = 1; }\n  if (stage === 'persistence' && status === 'success') ctx.persisted = 1;\n  obsEmit(ctx, stage, status);\n  return [{ json: { ...$input.first().json, _obs: ctx }, pairedItem: { item: 0 } }];\n}\nfunction obsFinish(status, previous, stage = 'run', code = 'NONE', responseReceived = false) {\n  const ctx = obsContext(previous);\n  if (responseReceived) obsUsage(ctx);\n  const report = obsEmit(ctx, stage, status, code, true);\n  // Apenas o evento permitido sai para outro workflow; nenhum payload de negocio.\n  return [{ json: { report }, pairedItem: { item: 0 } }];\n}\nfunction obsDelivery() {\n  const report = obsCanonical($input.first().json.report);\n  const id = $env.ROUTER_OBSERVER_WORKFLOW_ID;\n  const configured = $env.CLASSIFIER_ENV === 'DEV' && typeof id === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(id);\n  return [{ json: { report, send_observation: configured, observer_workflow_id: configured ? id : null }, pairedItem: { item: 0 } }];\n}\n\nconst input = $input.first().json;\nconst expected = $env.ROUTER_OBSERVED_WORKFLOW_ID;\n// Nao aceitar erros de outros workflows/ambientes, nem copiar sua mensagem.\nif ($env.CLASSIFIER_ENV !== 'DEV' || typeof expected !== 'string'\n    || !/^[A-Za-z0-9_-]{1,64}$/.test(expected) || input.workflow?.id !== expected) return [];\nconst execution = input.execution || {};\n// Esta parada ja teve evento terminal/alerta no ramo de erro, inclusive em modo manual.\nif (execution.lastNodeExecuted === 'Interromper com seguranca') return [];\nconst stages = { 'Webhook Review': 'received', 'Sanitizar PII': 'sanitization',\n  'Preparar deduplicacao DEV': 'precheck', 'Airtable Precheck DEV': 'precheck',\n  'Validar busca e restaurar texto': 'precheck', 'LLM DEV': 'llm', 'Parse + Merge': 'llm',\n  'Airtable Buscar review_id': 'final_dedup', 'Validar busca final DEV': 'final_dedup',\n  'Airtable DEV': 'persistence', 'Slack DEV': 'business_slack' };\nconst stage = stages[execution.lastNodeExecuted] || 'unknown';\n// Error Trigger nao fornece contagens/timing confiaveis: desconhecido e null, nao zero.\nconst parentKnown = /^\\d{1,30}$/.test(String(execution.id));\nconst handlerId = String($execution.id);\nif (!parentKnown && !/^\\d{1,30}$/.test(handlerId)) return [];\nconst ctx = { run_id: parentKnown ? 'router-' + execution.id : 'router-error-' + handlerId,\n  received: parentKnown ? 1 : null, started_ms: null, stage_ms: {},\n  persisted: null, llm_calls_attempted: null, llm_responses: null, classification_valid: null,\n  prompt_tokens: null, completion_tokens: null };\nconst report = obsEmit(ctx, stage, 'failure', 'WORKFLOW_INTERRUPTED', true);\nreturn [{ json: { report }, pairedItem: { item: 0 } }];\n"
+      },
+      "position": [
+        260,
+        0
+      ],
+      "id": "d1677894-c047-58ea-a0dd-e279c314d725"
+    },
+    {
+      "name": "Entregar observabilidade DEV",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const OBS_CONTRACT = {\"schema\": \"vozdocliente.router.observability.v1\", \"stages\": [\"received\", \"sanitization\", \"precheck\", \"llm\", \"final_dedup\", \"persistence\", \"business_slack\", \"run\", \"unknown\", \"telemetry\"], \"statuses\": [\"started\", \"success\", \"duplicate\", \"failure\"], \"sources\": [\"n8n\", \"offline_simulation\"], \"codes\": [\"NONE\", \"SANITIZATION_FAILED\", \"DEV_CONFIG_INVALID\", \"PRECHECK_HTTP_FAILED\", \"PRECHECK_INVALID\", \"LLM_HTTP_FAILED\", \"CLASSIFICATION_INVALID\", \"FINAL_DEDUP_HTTP_FAILED\", \"FINAL_DEDUP_INVALID\", \"PERSISTENCE_HTTP_FAILED\", \"BUSINESS_SLACK_FAILED\", \"WORKFLOW_INTERRUPTED\", \"OBS_DELIVERY_FAILED\"], \"counters\": [\"runs_total\", \"runs_success\", \"runs_duplicate\", \"runs_failure\", \"received\", \"persisted\", \"llm_calls_attempted\", \"llm_responses\", \"classification_valid\", \"prompt_tokens\", \"completion_tokens\"], \"measures\": [\"estimated_cost_usd\"], \"fields\": [\"schema\", \"event_id\", \"run_id\", \"correlation\", \"at\", \"source\", \"kind\", \"stage\", \"status\", \"duration_ms\", \"error_code\", \"metrics\"]};\n// OBS_CONTRACT e injetado pelo gerador. Nunca inspecionar mensagens/headers externos.\nconst obsClone = value => JSON.parse(JSON.stringify(value));\nconst obsCount = value => Number.isSafeInteger(value) && value >= 0 && value <= 1e12 ? value : null;\nconst obsDuration = start => Number.isFinite(start) && Date.now() >= start ? Date.now() - start : null;\nfunction obsContext(previous) {\n  const ctx = obsClone(previous ? $(previous).first().json._obs : $input.first().json._obs);\n  if (!ctx || !/^router-\\d{1,30}$/.test(ctx.run_id)) throw new Error('Contexto de observabilidade invalido.');\n  return ctx;\n}\nfunction obsPrice(value) {\n  if (typeof value !== 'string' || !/^(?:0|[1-9]\\d*)(?:\\.\\d{1,8})?$/.test(value)) return null;\n  const number = Number(value);\n  return number > 0 && number <= 1e6 ? number : null;\n}\nfunction obsUsage(ctx) {\n  const usage = $('LLM DEV').first().json.usage;\n  ctx.llm_responses = 1;\n  ctx.prompt_tokens = obsCount(usage?.prompt_tokens);\n  ctx.completion_tokens = obsCount(usage?.completion_tokens);\n  return ctx;\n}\nfunction obsMetrics(ctx, terminal, status) {\n  const inputPrice = obsPrice($env.OBS_LLM_INPUT_USD_PER_MILLION);\n  const outputPrice = obsPrice($env.OBS_LLM_OUTPUT_USD_PER_MILLION);\n  const cost = ctx.llm_calls_attempted === 0 ? 0\n    : ctx.prompt_tokens !== null && ctx.completion_tokens !== null && inputPrice !== null && outputPrice !== null\n      ? (ctx.prompt_tokens * inputPrice + ctx.completion_tokens * outputPrice) / 1e6 : null;\n  return { runs_total: terminal ? 1 : 0, runs_success: terminal && status === 'success' ? 1 : 0,\n    runs_duplicate: terminal && status === 'duplicate' ? 1 : 0, runs_failure: terminal && status === 'failure' ? 1 : 0,\n    received: terminal ? Object.prototype.hasOwnProperty.call(ctx, 'received') ? ctx.received : 1 : 0,\n    persisted: ctx.persisted, llm_calls_attempted: ctx.llm_calls_attempted,\n    llm_responses: ctx.llm_responses, classification_valid: ctx.classification_valid,\n    prompt_tokens: ctx.prompt_tokens, completion_tokens: ctx.completion_tokens, estimated_cost_usd: cost };\n}\nfunction obsCanonical(raw) {\n  const invalid = () => { throw new Error('Evento de observabilidade invalido.'); };\n  const exact = (value, keys) => value && typeof value === 'object' && !Array.isArray(value)\n    && Object.keys(value).sort().join('|') === [...keys].sort().join('|');\n  if (!exact(raw, OBS_CONTRACT.fields) || raw.schema !== OBS_CONTRACT.schema\n      || !/^router-(?:\\d{1,30}|error-\\d{1,30})$/.test(raw.run_id)\n      || !['execution', 'error_handler'].includes(raw.correlation)\n      || (raw.correlation === 'error_handler') !== raw.run_id.startsWith('router-error-')\n      || !OBS_CONTRACT.sources.includes(raw.source) || !['stage', 'run'].includes(raw.kind)\n      || !OBS_CONTRACT.stages.includes(raw.stage) || !OBS_CONTRACT.statuses.includes(raw.status)\n      || !OBS_CONTRACT.codes.includes(raw.error_code)\n      || raw.event_id !== [raw.run_id, raw.kind, raw.stage, raw.status].join(':')\n      || typeof raw.at !== 'string' || !/^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d\\.\\d{3}Z$/.test(raw.at)\n      || !Number.isFinite(Date.parse(raw.at)) || new Date(raw.at).toISOString() !== raw.at\n      || !(raw.duration_ms === null || Number.isSafeInteger(raw.duration_ms) && raw.duration_ms >= 0 && raw.duration_ms <= 1e12)\n      || raw.kind === 'run' && raw.status === 'started'\n      || (raw.status === 'failure') !== (raw.error_code !== 'NONE')\n      || !exact(raw.metrics, [...OBS_CONTRACT.counters, ...OBS_CONTRACT.measures])) invalid();\n  for (const key of OBS_CONTRACT.counters) if (!(raw.metrics[key] === null || obsCount(raw.metrics[key]) !== null)) invalid();\n  const cost = raw.metrics.estimated_cost_usd;\n  if (!(cost === null || typeof cost === 'number' && Number.isFinite(cost) && cost >= 0 && cost <= 1e12)) invalid();\n  if (raw.metrics.classification_valid !== null && raw.metrics.llm_responses !== null\n      && raw.metrics.classification_valid > raw.metrics.llm_responses) invalid();\n  if (raw.metrics.llm_responses !== null && raw.metrics.llm_calls_attempted !== null\n      && raw.metrics.llm_responses > raw.metrics.llm_calls_attempted) invalid();\n  if (raw.metrics.runs_total !== (raw.kind === 'run' ? 1 : 0)\n      || raw.metrics.runs_success !== (raw.kind === 'run' && raw.status === 'success' ? 1 : 0)\n      || raw.metrics.runs_duplicate !== (raw.kind === 'run' && raw.status === 'duplicate' ? 1 : 0)\n      || raw.metrics.runs_failure !== (raw.kind === 'run' && raw.status === 'failure' ? 1 : 0)) invalid();\n  return obsClone(raw);\n}\nfunction obsEmit(ctx, stage, status, code = 'NONE', terminal = false) {\n  const report = obsCanonical({ schema: OBS_CONTRACT.schema,\n    event_id: [ctx.run_id, terminal ? 'run' : 'stage', stage, status].join(':'),\n    run_id: ctx.run_id, correlation: ctx.run_id.startsWith('router-error-') ? 'error_handler' : 'execution', at: new Date().toISOString(),\n    source: $execution.mode === 'offline_simulation' ? 'offline_simulation' : 'n8n',\n    kind: terminal ? 'run' : 'stage', stage, status,\n    duration_ms: obsDuration(terminal ? ctx.started_ms : ctx.stage_ms[stage]),\n    error_code: code, metrics: obsMetrics(ctx, terminal, status) });\n  console.log(JSON.stringify(report));\n  return report;\n}\nfunction obsStart() {\n  const id = String($execution.id);\n  if (!/^\\d{1,30}$/.test(id)) throw new Error('Identificador de execucao invalido.');\n  const ctx = { run_id: 'router-' + id, started_ms: Date.now(), stage_ms: { received: Date.now(), sanitization: Date.now() },\n    persisted: 0, llm_calls_attempted: 0, llm_responses: 0, classification_valid: 0, prompt_tokens: 0, completion_tokens: 0 };\n  obsEmit(ctx, 'received', 'success');\n  obsEmit(ctx, 'sanitization', 'started');\n  return [{ json: { ...$input.first().json, _obs: ctx }, pairedItem: { item: 0 } }];\n}\nfunction obsStep(stage, status, previous) {\n  const ctx = obsContext(previous);\n  if (status === 'started') {\n    ctx.stage_ms[stage] = Date.now();\n    if (stage === 'llm') {\n      ctx.llm_calls_attempted = 1; ctx.prompt_tokens = null; ctx.completion_tokens = null;\n    }\n  }\n  if (stage === 'llm' && status === 'success') { obsUsage(ctx); ctx.classification_valid = 1; }\n  if (stage === 'persistence' && status === 'success') ctx.persisted = 1;\n  obsEmit(ctx, stage, status);\n  return [{ json: { ...$input.first().json, _obs: ctx }, pairedItem: { item: 0 } }];\n}\nfunction obsFinish(status, previous, stage = 'run', code = 'NONE', responseReceived = false) {\n  const ctx = obsContext(previous);\n  if (responseReceived) obsUsage(ctx);\n  const report = obsEmit(ctx, stage, status, code, true);\n  // Apenas o evento permitido sai para outro workflow; nenhum payload de negocio.\n  return [{ json: { report }, pairedItem: { item: 0 } }];\n}\nfunction obsDelivery() {\n  const report = obsCanonical($input.first().json.report);\n  const id = $env.ROUTER_OBSERVER_WORKFLOW_ID;\n  const configured = $env.CLASSIFIER_ENV === 'DEV' && typeof id === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(id);\n  return [{ json: { report, send_observation: configured, observer_workflow_id: configured ? id : null }, pairedItem: { item: 0 } }];\n}\n\nreturn obsDelivery();"
+      },
+      "position": [
+        520,
+        0
+      ],
+      "id": "f24b8eb5-86f8-50dc-b22a-f17493c9e2de"
+    },
+    {
+      "name": "Observador configurado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "decision",
+              "leftValue": "={{ $json.send_observation }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "position": [
+        780,
+        0
+      ],
+      "id": "a55bc4c4-4e76-51f4-a9af-c88b4aac6d9f"
+    },
+    {
+      "name": "Enviar observabilidade DEV",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "parameters": {
+        "source": "database",
+        "workflowId": "={{ $json.observer_workflow_id }}",
+        "mode": "once",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "position": [
+        1040,
+        0
+      ],
+      "id": "65936940-794f-5122-9c9d-cb065376bf2d",
+      "onError": "continueRegularOutput",
+      "retryOnFail": false
+    },
+    {
+      "name": "Resultado Router DEV",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const OBS_CONTRACT = {\"schema\": \"vozdocliente.router.observability.v1\", \"stages\": [\"received\", \"sanitization\", \"precheck\", \"llm\", \"final_dedup\", \"persistence\", \"business_slack\", \"run\", \"unknown\", \"telemetry\"], \"statuses\": [\"started\", \"success\", \"duplicate\", \"failure\"], \"sources\": [\"n8n\", \"offline_simulation\"], \"codes\": [\"NONE\", \"SANITIZATION_FAILED\", \"DEV_CONFIG_INVALID\", \"PRECHECK_HTTP_FAILED\", \"PRECHECK_INVALID\", \"LLM_HTTP_FAILED\", \"CLASSIFICATION_INVALID\", \"FINAL_DEDUP_HTTP_FAILED\", \"FINAL_DEDUP_INVALID\", \"PERSISTENCE_HTTP_FAILED\", \"BUSINESS_SLACK_FAILED\", \"WORKFLOW_INTERRUPTED\", \"OBS_DELIVERY_FAILED\"], \"counters\": [\"runs_total\", \"runs_success\", \"runs_duplicate\", \"runs_failure\", \"received\", \"persisted\", \"llm_calls_attempted\", \"llm_responses\", \"classification_valid\", \"prompt_tokens\", \"completion_tokens\"], \"measures\": [\"estimated_cost_usd\"], \"fields\": [\"schema\", \"event_id\", \"run_id\", \"correlation\", \"at\", \"source\", \"kind\", \"stage\", \"status\", \"duration_ms\", \"error_code\", \"metrics\"]};\n// OBS_CONTRACT e injetado pelo gerador. Nunca inspecionar mensagens/headers externos.\nconst obsClone = value => JSON.parse(JSON.stringify(value));\nconst obsCount = value => Number.isSafeInteger(value) && value >= 0 && value <= 1e12 ? value : null;\nconst obsDuration = start => Number.isFinite(start) && Date.now() >= start ? Date.now() - start : null;\nfunction obsContext(previous) {\n  const ctx = obsClone(previous ? $(previous).first().json._obs : $input.first().json._obs);\n  if (!ctx || !/^router-\\d{1,30}$/.test(ctx.run_id)) throw new Error('Contexto de observabilidade invalido.');\n  return ctx;\n}\nfunction obsPrice(value) {\n  if (typeof value !== 'string' || !/^(?:0|[1-9]\\d*)(?:\\.\\d{1,8})?$/.test(value)) return null;\n  const number = Number(value);\n  return number > 0 && number <= 1e6 ? number : null;\n}\nfunction obsUsage(ctx) {\n  const usage = $('LLM DEV').first().json.usage;\n  ctx.llm_responses = 1;\n  ctx.prompt_tokens = obsCount(usage?.prompt_tokens);\n  ctx.completion_tokens = obsCount(usage?.completion_tokens);\n  return ctx;\n}\nfunction obsMetrics(ctx, terminal, status) {\n  const inputPrice = obsPrice($env.OBS_LLM_INPUT_USD_PER_MILLION);\n  const outputPrice = obsPrice($env.OBS_LLM_OUTPUT_USD_PER_MILLION);\n  const cost = ctx.llm_calls_attempted === 0 ? 0\n    : ctx.prompt_tokens !== null && ctx.completion_tokens !== null && inputPrice !== null && outputPrice !== null\n      ? (ctx.prompt_tokens * inputPrice + ctx.completion_tokens * outputPrice) / 1e6 : null;\n  return { runs_total: terminal ? 1 : 0, runs_success: terminal && status === 'success' ? 1 : 0,\n    runs_duplicate: terminal && status === 'duplicate' ? 1 : 0, runs_failure: terminal && status === 'failure' ? 1 : 0,\n    received: terminal ? Object.prototype.hasOwnProperty.call(ctx, 'received') ? ctx.received : 1 : 0,\n    persisted: ctx.persisted, llm_calls_attempted: ctx.llm_calls_attempted,\n    llm_responses: ctx.llm_responses, classification_valid: ctx.classification_valid,\n    prompt_tokens: ctx.prompt_tokens, completion_tokens: ctx.completion_tokens, estimated_cost_usd: cost };\n}\nfunction obsCanonical(raw) {\n  const invalid = () => { throw new Error('Evento de observabilidade invalido.'); };\n  const exact = (value, keys) => value && typeof value === 'object' && !Array.isArray(value)\n    && Object.keys(value).sort().join('|') === [...keys].sort().join('|');\n  if (!exact(raw, OBS_CONTRACT.fields) || raw.schema !== OBS_CONTRACT.schema\n      || !/^router-(?:\\d{1,30}|error-\\d{1,30})$/.test(raw.run_id)\n      || !['execution', 'error_handler'].includes(raw.correlation)\n      || (raw.correlation === 'error_handler') !== raw.run_id.startsWith('router-error-')\n      || !OBS_CONTRACT.sources.includes(raw.source) || !['stage', 'run'].includes(raw.kind)\n      || !OBS_CONTRACT.stages.includes(raw.stage) || !OBS_CONTRACT.statuses.includes(raw.status)\n      || !OBS_CONTRACT.codes.includes(raw.error_code)\n      || raw.event_id !== [raw.run_id, raw.kind, raw.stage, raw.status].join(':')\n      || typeof raw.at !== 'string' || !/^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d\\.\\d{3}Z$/.test(raw.at)\n      || !Number.isFinite(Date.parse(raw.at)) || new Date(raw.at).toISOString() !== raw.at\n      || !(raw.duration_ms === null || Number.isSafeInteger(raw.duration_ms) && raw.duration_ms >= 0 && raw.duration_ms <= 1e12)\n      || raw.kind === 'run' && raw.status === 'started'\n      || (raw.status === 'failure') !== (raw.error_code !== 'NONE')\n      || !exact(raw.metrics, [...OBS_CONTRACT.counters, ...OBS_CONTRACT.measures])) invalid();\n  for (const key of OBS_CONTRACT.counters) if (!(raw.metrics[key] === null || obsCount(raw.metrics[key]) !== null)) invalid();\n  const cost = raw.metrics.estimated_cost_usd;\n  if (!(cost === null || typeof cost === 'number' && Number.isFinite(cost) && cost >= 0 && cost <= 1e12)) invalid();\n  if (raw.metrics.classification_valid !== null && raw.metrics.llm_responses !== null\n      && raw.metrics.classification_valid > raw.metrics.llm_responses) invalid();\n  if (raw.metrics.llm_responses !== null && raw.metrics.llm_calls_attempted !== null\n      && raw.metrics.llm_responses > raw.metrics.llm_calls_attempted) invalid();\n  if (raw.metrics.runs_total !== (raw.kind === 'run' ? 1 : 0)\n      || raw.metrics.runs_success !== (raw.kind === 'run' && raw.status === 'success' ? 1 : 0)\n      || raw.metrics.runs_duplicate !== (raw.kind === 'run' && raw.status === 'duplicate' ? 1 : 0)\n      || raw.metrics.runs_failure !== (raw.kind === 'run' && raw.status === 'failure' ? 1 : 0)) invalid();\n  return obsClone(raw);\n}\nfunction obsEmit(ctx, stage, status, code = 'NONE', terminal = false) {\n  const report = obsCanonical({ schema: OBS_CONTRACT.schema,\n    event_id: [ctx.run_id, terminal ? 'run' : 'stage', stage, status].join(':'),\n    run_id: ctx.run_id, correlation: ctx.run_id.startsWith('router-error-') ? 'error_handler' : 'execution', at: new Date().toISOString(),\n    source: $execution.mode === 'offline_simulation' ? 'offline_simulation' : 'n8n',\n    kind: terminal ? 'run' : 'stage', stage, status,\n    duration_ms: obsDuration(terminal ? ctx.started_ms : ctx.stage_ms[stage]),\n    error_code: code, metrics: obsMetrics(ctx, terminal, status) });\n  console.log(JSON.stringify(report));\n  return report;\n}\nfunction obsStart() {\n  const id = String($execution.id);\n  if (!/^\\d{1,30}$/.test(id)) throw new Error('Identificador de execucao invalido.');\n  const ctx = { run_id: 'router-' + id, started_ms: Date.now(), stage_ms: { received: Date.now(), sanitization: Date.now() },\n    persisted: 0, llm_calls_attempted: 0, llm_responses: 0, classification_valid: 0, prompt_tokens: 0, completion_tokens: 0 };\n  obsEmit(ctx, 'received', 'success');\n  obsEmit(ctx, 'sanitization', 'started');\n  return [{ json: { ...$input.first().json, _obs: ctx }, pairedItem: { item: 0 } }];\n}\nfunction obsStep(stage, status, previous) {\n  const ctx = obsContext(previous);\n  if (status === 'started') {\n    ctx.stage_ms[stage] = Date.now();\n    if (stage === 'llm') {\n      ctx.llm_calls_attempted = 1; ctx.prompt_tokens = null; ctx.completion_tokens = null;\n    }\n  }\n  if (stage === 'llm' && status === 'success') { obsUsage(ctx); ctx.classification_valid = 1; }\n  if (stage === 'persistence' && status === 'success') ctx.persisted = 1;\n  obsEmit(ctx, stage, status);\n  return [{ json: { ...$input.first().json, _obs: ctx }, pairedItem: { item: 0 } }];\n}\nfunction obsFinish(status, previous, stage = 'run', code = 'NONE', responseReceived = false) {\n  const ctx = obsContext(previous);\n  if (responseReceived) obsUsage(ctx);\n  const report = obsEmit(ctx, stage, status, code, true);\n  // Apenas o evento permitido sai para outro workflow; nenhum payload de negocio.\n  return [{ json: { report }, pairedItem: { item: 0 } }];\n}\nfunction obsDelivery() {\n  const report = obsCanonical($input.first().json.report);\n  const id = $env.ROUTER_OBSERVER_WORKFLOW_ID;\n  const configured = $env.CLASSIFIER_ENV === 'DEV' && typeof id === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(id);\n  return [{ json: { report, send_observation: configured, observer_workflow_id: configured ? id : null }, pairedItem: { item: 0 } }];\n}\n\nconst previous = $('Entregar observabilidade DEV').first().json;\nconst report = obsCanonical(previous.report);\nconst response = $input.first().json;\nconst allowedStatus = ['not_needed', 'disabled', 'blocked', 'sent', 'failed'];\nconst result = response.observability;\nconst ok = previous.send_observation && result && allowedStatus.includes(result.alert_status);\nconst alertStatus = !previous.send_observation ? 'not_configured' : ok ? result.alert_status : 'delivery_failed';\nconst allowedErrors = ['ALERT_CONFIG_INVALID', 'SLACK_DELIVERY_FAILED'];\nconst alertError = ok ? allowedErrors.includes(result.alert_error_code) ? result.alert_error_code : null : 'OBS_DELIVERY_FAILED';\nif (!ok || ['failed', 'blocked'].includes(alertStatus)) {\n  const event = { ...report, kind: 'stage', stage: 'telemetry', status: 'failure', duration_ms: null,\n    at: new Date().toISOString(), error_code: 'OBS_DELIVERY_FAILED',\n    event_id: [report.run_id, 'stage', 'telemetry', 'failure'].join(':'),\n    metrics: { ...report.metrics, runs_total: 0, runs_success: 0, runs_duplicate: 0, runs_failure: 0, received: 0 } };\n  console.log(JSON.stringify(obsCanonical(event)));\n}\nreturn [{ json: { report, alert_status: alertStatus, alert_error_code: alertError }, pairedItem: { item: 0 } }];\n"
+      },
+      "position": [
+        1300,
+        0
+      ],
+      "id": "8dac1a8c-a15e-5cf7-b08f-04e3b8d0789e"
+    }
+  ],
+  "connections": {
+    "Erro Router DEV": {
+      "main": [
+        [
+          {
+            "node": "Normalizar erro Router DEV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar erro Router DEV": {
+      "main": [
+        [
+          {
+            "node": "Entregar observabilidade DEV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Entregar observabilidade DEV": {
+      "main": [
+        [
+          {
+            "node": "Observador configurado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Observador configurado?": {
+      "main": [
+        [
+          {
+            "node": "Enviar observabilidade DEV",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Resultado Router DEV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar observabilidade DEV": {
+      "main": [
+        [
+          {
+            "node": "Resultado Router DEV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": false,
+    "saveExecutionProgress": false
+  },
+  "tags": []
+}

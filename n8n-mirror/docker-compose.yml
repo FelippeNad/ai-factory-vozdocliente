@@ -22,6 +22,23 @@ services:
       # As credenciais reais (OpenAI, Airtable, Slack) são criadas pela UI do n8n.
       # AIRTABLE_BASE_ID é lido pelo node "Airtable Create" via {{$env.AIRTABLE_BASE_ID}}.
       - AIRTABLE_BASE_ID=${AIRTABLE_BASE_ID}
+      # Router v4 otimizado: ausentes permanecem vazias e o workflow bloqueia.
+      - CLASSIFIER_ENV=${CLASSIFIER_ENV:-}
+      - CLASSIFIER_DEV_BASE_ID=${CLASSIFIER_DEV_BASE_ID:-}
+      - CLASSIFIER_DEV_TABLE_ID=${CLASSIFIER_DEV_TABLE_ID:-}
+      - CLASSIFIER_SLACK_DEV_CHANNEL_ID=${CLASSIFIER_SLACK_DEV_CHANNEL_ID:-}
+      - ROUTER_OBSERVER_WORKFLOW_ID=${ROUTER_OBSERVER_WORKFLOW_ID:-}
+      - ROUTER_OBSERVED_WORKFLOW_ID=${ROUTER_OBSERVED_WORKFLOW_ID:-}
+      - ROUTER_ALERTS_ENABLED=${ROUTER_ALERTS_ENABLED:-false}
+      - OBS_LLM_INPUT_USD_PER_MILLION=${OBS_LLM_INPUT_USD_PER_MILLION:-}
+      - OBS_LLM_OUTPUT_USD_PER_MILLION=${OBS_LLM_OUTPUT_USD_PER_MILLION:-}
+      # Global: habilitar so apos revisar console.log dos demais workflows locais.
+      - CODE_ENABLE_STDOUT=${ROUTER_OBS_STDOUT_ENABLED:-false}
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
     volumes:
       - n8n_data:/home/node/.n8n
 

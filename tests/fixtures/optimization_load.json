@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "unique_reviews": 30,
+  "passes": 4,
+  "order": "round_robin",
+  "semantics_fixture": "pii_semantic_cases.json"
+}

@@ -1,93 +1,98 @@
-# n8n-mirror — VozDoCliente Review Router
+# n8n local — VozDoCliente / Etapa 2
 
-LGPD e operação segura: consulte o [mapa de dados](../docs/lgpd/mapa-dados-pessoais.md),
-[transferências internacionais](../docs/lgpd/transferencia-internacional.md),
-[rotação de credenciais](../docs/security/rotacao-credenciais.md) e
-[roteiro da apresentação](../docs/lgpd/roteiro-evidencias.md). São documentação
-e exercício offline; não ativam workflows nem alteram credenciais ou instâncias.
+## Escolha do workflow
 
-## Etapa 2: v4 candidata
+Para a entrega estável, usar:
 
-Retenção e exclusão agora têm workflows **independentes** e inativos:
-`vozdocliente-retencao-v1.json` (DEV, DRY_RUN padrão) e
-`vozdocliente-retencao-demo.json` (somente stubs Code, sem HTTP/credenciais).
-A [documentação de retenção](../docs/etapa-2-retencao-exclusao.md) explica a
-auditoria, variáveis, limites, histórico n8n e captura de evidências.
-O Compose independente `docker-compose.retention.yml` usa porta `5680` e volume
-próprio; não altera a instância existente de classificação.
+- **Router DEV:** `workflows/vozdocliente-router-v4-otimizado-dev.json`.
+  Avaliação nova, duplicata antes do LLM e falha segura do precheck foram
+  validadas no n8n pelo responsável. Export inativo, sem credenciais vinculadas.
+- **Retenção DEV:** `workflows/vozdocliente-retencao-v1.json`, somente DRY_RUN.
+  `retention-6` teve 4 analisados, 2 elegíveis, 0 exclusões/falhas e auditoria real
+  confirmada no Airtable DEV. Export inativo, sem credenciais vinculadas.
+- **Sem APIs:** `workflows/vozdocliente-retencao-demo.json`. Transportes Code,
+  métricas e Slack simulados. Manter inativo e executar manualmente. Esperado:
+  6 analisados, 2 elegíveis, 0 excluídos, 3 páginas e 2 datas inválidas (`partial`).
 
-`workflows/vozdocliente-router-v4.json` adiciona `Sanitizar PII` antes do LLM e
-permanece **inativa**, sem deploy. A v3 foi preservada. O LLM recebe exclusivamente
-o campo sanitizado, sem fallback. Slack recebe apenas tema e nota; Airtable mantém
-os dados originais para tratativa, com risco residual documentado.
+Os três arquivos `vozdocliente-router-v4-observavel-dev.json`,
+`vozdocliente-observabilidade-router-dev.json` e `vozdocliente-erros-router-dev.json`
+são **experimentais**, testados offline e pendentes de integração no engine.
+Não são a demonstração principal. Ver [observabilidade experimental](../docs/etapa-2-observabilidade-router.md).
 
-Consulte [funcionamento, limitações, testes e evidências da Etapa 2](../docs/etapa-2-sanitizacao-pii.md).
-Para validar esta etapa, use os testes offline. As instruções históricas abaixo
-referem-se à v0 e envolvem APIs reais; não são necessárias para validar a v4.
+V0/v1/v2 são protótipos históricos. V3 é referência antiga de produção com
+`active=true`, e v4 original é a baseline de PII inativa. Essas versões conservam
+metadados de credenciais (IDs/nomes, sem tokens); não importar como DEV pronto.
+Os exports v3/v4 foram preservados. Não ativar workflows históricos ou agendas.
 
-## Referência histórica do espelho inicial
+## Instâncias e arquivo de ambiente
 
-Espelho **rodável** do cenário Make.com. O Make não roda local, então pra vocês testarem o fluxo de verdade eu refiz os mesmos passos no n8n (self-host via Docker). É o mesmo pipeline:
+A classificação usa `docker-compose.yml`, porta **5678**, n8n **2.28.7** e
+volume `n8n_data`. A retenção usa `docker-compose.retention.yml`, porta **5680**
+e volume próprio. Não são a mesma instância, e as credenciais não são compartilhadas
+implicitamente. O primeiro acesso cria uma conta owner; não usar `admin/admin`.
 
-```
-Webhook /review → OpenAI (sentiment + theme) → Parse+Merge → Airtable Create → IF negativo? → Slack #cx-alertas
-```
+Executar na raiz do repositório. Para validar sem iniciar contêineres e sem
+imprimir variáveis reais:
 
-> Os nodes de OpenAI, Airtable e Slack aqui são **HTTP Request genéricos** (batem direto na API REST), não os nodes nativos. Foi de propósito: deixa explícito o request e fica fácil de inspecionar/mockar. Em produção vocês podem trocar pelos nodes nativos.
-
-## Subir o n8n
-
-```bash
-cd n8n-mirror
-cp ../.env.example .env   # preencha AIRTABLE_BASE_ID (o resto é credencial da UI)
-docker compose up
+```powershell
+docker compose --env-file .env.example -f n8n-mirror/docker-compose.yml config --quiet
+docker compose --env-file .env.example -f n8n-mirror/docker-compose.retention.yml config --quiet
 ```
 
-Abre em http://localhost:5678 — login `admin` / `admin` (troquem isso, é dívida herdada, ver README raiz).
+Ao configurar uma instância depois da revisão, usar `--env-file` explicitamente.
+`--env-file n8n-mirror/.env` aponta ao arquivo desta pasta; `--env-file .env` ao
+arquivo da raiz. Credenciais são selecionadas na UI; não copiar tokens ao JSON.
+Os roteiros de cada componente explicam recriação local, sem remover volumes.
+Esta revisão não iniciou/recriou contêineres nem alterou `.env` reais.
 
-## Importar o workflow
+## Router recomendado
 
-1. No menu do n8n: **Workflows → Import from File**.
-2. Escolha `workflows/vozdocliente-router-v0.json`.
-3. O workflow vem com **3 credenciais por nome** (não exportam valores — igual o Make):
-   - `OpenAI Sther (pessoal - ROTACIONAR)` → tipo **Header Auth**, header `Authorization`, valor `Bearer sk-...`
-   - `Airtable PAT Sther (base corporativa)` → tipo **Header Auth**, header `Authorization`, valor `Bearer patXXXX...`
-   - `Slack VozDoCliente Bot` → tipo **Header Auth**, header `Authorization`, valor `Bearer xoxb-...`
-4. Abra cada node HTTP, recrie/aponte a credencial Header Auth correspondente.
-5. Clique **Active** no canto superior direito (senão o webhook responde 404).
+Exige `CLASSIFIER_ENV=DEV`, `CLASSIFIER_DEV_BASE_ID`, `CLASSIFIER_DEV_TABLE_ID`
+e `CLASSIFIER_SLACK_DEV_CHANNEL_ID` para alertas negativos. O Compose repassa essas
+variáveis; escrever em um `.env` diferente do selecionado não altera o serviço.
+Selecionar OpenAI DEV em `LLM DEV`, Airtable DEV nos dois GETs e em `Airtable DEV`,
+e Slack DEV em `Slack DEV`. Validar projeto/base/tabela/canal nas contas: o nome
+DEV da variável não comprova segregação.
 
-## Teste manual (sem app real)
+Importar como **novo workflow inativo**, sem substituir v3/v4. Escutar
+`Webhook Review` e enviar apenas fixture sintética para:
 
-O fluxo recebe um POST no webhook. Veja `../docs/exemplos-reviews.md` para mais payloads.
-
-```bash
-curl -X POST http://localhost:5678/webhook/review \
-  -H "Content-Type: application/json" \
-  -d '{
-    "review_id": "R-1001",
-    "customer_name": "Marina Souza",
-    "source": "app-store",
-    "rating": 1,
-    "review_text": "Comprei e o produto chegou quebrado, ninguem do SAC responde. Pessimo."
-  }'
+```text
+POST http://localhost:5678/webhook-test/review-v4-otimizado-dev
 ```
 
-Esperado:
-- `200` no curl.
-- 1 linha nova na tabela `Reviews` do Airtable.
-- Como `sentiment` deve sair `negativo`, **uma mensagem no canal `#cx-alertas`** do Slack.
+A primeira execução deve classificar e persistir; repetir o ID deve encerrar em
+`Ja existe? DEV`, sem executar `LLM DEV`. Falha do GET deve interromper antes do
+LLM. O corpo do LLM continua usando somente `review_text_sanitized`.
+Este workflow faz chamadas reais DEV quando executado; não tem DRY_RUN.
+O protótipo LM Studio/Qwen das capturas antigas não descreve este export OpenAI.
 
-Para um review positivo (`"review_text": "App rapido e entrega no prazo, recomendo!"`), grava no Airtable mas **não** dispara Slack — o IF barra.
+## Retenção recomendada
 
-## Atenção: isto NÃO sobe sozinho aqui
+Manter `RETENTION_ENV=DEV` e `RETENTION_DRY_RUN=true`. Seleção por IDs e nome exato
+`RETENTION_TABLE_NAME` (padrão `Reviews`; `ReviewsRetentionTest` no teste isolado).
+A auditoria exige `RetentionAudit` e 18 campos. Não mudar as confirmações DELETE.
+Selecionar a mesma credencial Airtable DEV em `Airtable DEV operacao` e
+`Airtable DEV sem body`. HTTP Request 4.1 usa `sendBody` literal, com IF separando
+POST/PATCH JSON de GET/DELETE. A DEMO usa Code no lugar desses transportes.
 
-O enunciado/CI **não** roda `docker compose up`. Os testes automatizados (validador de JSON + teste de lógica com LLM mockado) estão em `../tests/` e rodam sem subir o n8n. O passo Docker acima é pra vocês rodarem na máquina de vocês.
+O alerta de falha da retenção usa `Slack DEV falha`, opt-in via
+`RETENTION_ALERTS_ENABLED`, `RETENTION_ENV=DEV` e `RETENTION_SLACK_DEV_CHANNEL_ID`.
+O responsável informou recebimento real de alerta sintético, `alert_status=sent`
+e erro nulo. Isso não valida o Slack integrado dos workflows experimentais.
 
-## Diferenças vs. Make
+## Documentação e segurança
 
-| Aspecto | Make | n8n mirror |
-| --- | --- | --- |
-| Roteamento do negativo | Router + filter na rota | node `IF` (saída true → Slack) |
-| Parse do JSON do LLM | módulo `JSON > Parse JSON` | node `Code` (Parse + Merge) |
-| Chamadas de API | módulos nativos (OpenAI/Airtable/Slack) | HTTP Request genérico |
-| Credenciais | Connections (não exportam) | Credentials Header Auth (não exportam) |
+- [Estado da entrega e catálogo](../README.md).
+- [Sanitização PII](../docs/etapa-2-sanitizacao-pii.md).
+- [Otimização, benchmark e limites](../docs/etapa-2-otimizacao-v4.md).
+- [Retenção e auditoria](../docs/etapa-2-retencao-exclusao.md).
+- [Observabilidade da retenção](../docs/etapa-2-observabilidade.md).
+- [Auditoria de publicação](../docs/entrega-etapa-2.md).
+- [Mapa LGPD](../docs/lgpd/mapa-dados-pessoais.md) e
+  [rotação de credenciais](../docs/security/rotacao-credenciais.md).
+
+Produção Railway está indisponível após o período gratuito, conforme informado
+pelo responsável. Não usar os endpoints ou instruções de ativação dos protótipos
+históricos. Os testes/exports rodam offline; publicação exige revisão de privacidade
+das capturas históricas e conferência de autodeploy/webhooks nas contas.

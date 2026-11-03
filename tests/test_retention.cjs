@@ -51,8 +51,8 @@ function schema() {
 
 // Percorre o grafo real, incluindo IF, expressoes HTTP e o retorno de cada loop.
 function simulate({ env = ENV, pages = [{ records: [] }], handler, beforeGuard, workflow = WORKFLOW } = {}) {
-  let current = 'Agenda de retencao', value = {}, previous, clock = NOW;
-  const requests = [], audits = [], trace = [];
+  let current = 'Agenda de retencao', value = {}, clock = NOW;
+  const requests = [], audits = [], trace = [], logs = [], notifications = [], outputs = {};
   let page = 0;
   const expression = (text, json) => vm.runInNewContext(text.slice(3, -2).trim(), { $json: json }, { timeout: 1000 });
   for (let step = 0; step < 2000; step++) {
@@ -61,21 +61,29 @@ function simulate({ env = ENV, pages = [{ records: [] }], handler, beforeGuard, 
     if (node.type === 'n8n-nodes-base.code') {
       if (current === 'Validar operacao DEV') beforeGuard?.(value.state, env);
       value = runNode(current, value, env, clock, {
-        $: name => { assert.equal(name, 'Validar operacao DEV'); return { item: { json: plain(previous) } }; },
+        $: name => { assert.ok(outputs[name], 'Node pareado ausente'); return { item: { json: plain(outputs[name]) } }; },
+        console: { log: value => logs.push(plain(value)) },
       }, workflow);
-      if (current === 'Validar operacao DEV') previous = plain(value);
     } else if (node.type === 'n8n-nodes-base.if') {
       const condition = node.parameters.conditions.conditions[0];
       branch = expression(condition.leftValue, value) ? 0 : 1;
     } else if (node.type === 'n8n-nodes-base.wait') clock += 1000;
     else if (node.type === 'n8n-nodes-base.httpRequest') {
-      const request = { method: expression(node.parameters.method, value),
-        url: expression(node.parameters.url, value) };
-      if (expression(node.parameters.sendBody, value)) request.body = JSON.parse(expression(node.parameters.jsonBody, value));
-      requests.push(plain(request));
-      const kind = value.state.action;
+      const parameter = text => text.startsWith('={{') ? expression(text, value) : text;
+      const request = { method: parameter(node.parameters.method), url: parameter(node.parameters.url) };
+      // sendBody e noDataExpression no HTTP Request 4.1: nunca avaliar expressoes aqui.
+      assert.equal(typeof node.parameters.sendBody, 'boolean');
+      if (node.parameters.sendBody) {
+        assert.equal(node.parameters.contentType, 'json');
+        assert.equal(node.parameters.specifyBody, 'json');
+        request.body = JSON.parse(expression(node.parameters.jsonBody, value));
+      }
+      const isSlack = current === 'Slack DEV falha';
+      (isSlack ? notifications : requests).push(plain(request));
+      const kind = isSlack ? 'slack' : value.state.action;
       const custom = handler?.(request, kind, value.state, requests);
       if (custom !== undefined) value = custom;
+      else if (kind === 'slack') value = { statusCode: 200, body: { ok: true } };
       else if (kind === 'schema') value = { statusCode: 200, body: schema() };
       else if (kind === 'list') value = { statusCode: 200, body: pages[page++] };
       else if (kind === 'recheck') value = { statusCode: 200, body: { records: [record(1 + value.state.index)] } };
@@ -85,8 +93,9 @@ function simulate({ env = ENV, pages = [{ records: [] }], handler, beforeGuard, 
         value = { statusCode: 200, body: { id: id(999), fields: plain(request.body.fields) } };
       } else throw Error('Operacao inesperada no mock');
     }
+    outputs[current] = plain(value);
     const links = workflow.connections[current]?.main?.[branch];
-    if (!links?.length) return { summary: value, requests, audits, trace };
+    if (!links?.length) return { summary: value, requests, audits, trace, logs, notifications };
     assert.equal(links.length, 1, 'Fluxo deve ser sequencial');
     current = links[0].node;
   }
@@ -101,7 +110,7 @@ function runTests(report = console.log) {
     assert.equal(WORKFLOW.active, false);
     assert.equal(WORKFLOW.settings.timezone, 'America/Sao_Paulo');
     assert.equal(NODES['Agenda de retencao'].parameters.rule.interval[0].expression, '0 3 * * *');
-    assert.equal(WORKFLOW.nodes.filter(n => n.type.endsWith('.httpRequest')).length, 1);
+    assert.equal(WORKFLOW.nodes.filter(n => n.type.endsWith('.httpRequest')).length, 3);
     assert.ok(!JSON.stringify(WORKFLOW).includes('credentials'));
   });
   test('dry run padrao, preview e auditoria agregada', () => {
@@ -114,12 +123,117 @@ function runTests(report = console.log) {
     assert.equal(deletes(run).length, 0); assert.equal(run.audits.length, 1);
     assert.ok(!JSON.stringify(run.audits).includes(id(1)));
   });
+  test('HTTP 4.1: POST/PATCH de auditoria preservam fields; GET/DELETE sem body', () => {
+    assert.equal(NODES['Airtable DEV operacao'].typeVersion, 4.1);
+    assert.equal(NODES['Airtable DEV operacao'].parameters.sendBody, true);
+    assert.equal(NODES['Airtable DEV sem body'].parameters.sendBody, false);
+    const seen = new Set();
+    for (const env of [ENV, DELETE_ENV]) {
+      const run = simulate({ env, pages: [{ records: [record(1)] }], handler: (request, kind, state) => {
+        seen.add(kind);
+        if (kind === 'audit_create' || kind === 'audit_update') {
+          assert.equal(request.method, kind === 'audit_create' ? 'POST' : 'PATCH');
+          assert.deepEqual(request.body, { fields: state.audit_expected });
+          assert.equal(Object.keys(request.body.fields).length, 18);
+        } else {
+          assert.ok(['GET', 'DELETE'].includes(request.method));
+          assert.equal(Object.hasOwn(request, 'body'), false);
+        }
+      } });
+      assert.equal(run.summary.audit_finalized, true);
+      assert.deepEqual(run.summary.error_codes, []);
+    }
+    assert.deepEqual([...seen].sort(), ['schema', 'list', 'audit_create', 'recheck', 'delete', 'audit_update'].sort());
+  });
+  test('sendBody como expressao e rejeitado pelo simulador, sem fingir suporte n8n', () => {
+    const workflow = plain(WORKFLOW);
+    workflow.nodes.find(node => node.name === 'Airtable DEV sem body').parameters.sendBody = '={{ false }}';
+    assert.throws(() => simulate({ workflow }), assert.AssertionError);
+  });
   test('limite temporal estrito, nao exclui igualdade, preserva UTC e offset', () => {
     const run = simulate({ env: { ...ENV, RETENTION_PAGE_SIZE: '100' }, pages: [{ records: [
       record(1, '2026-10-03T11:59:59.999Z'), record(2, '2026-10-03T12:00:00.000Z'),
       record(3, '2026-10-03T09:00:00-03:00'), record(4, '2026-11-01T00:00:00Z'),
     ] }] });
     assert.equal(run.summary.eligible, 1); assert.equal(run.summary.recent, 3);
+  });
+  const isolatedName = 'ReviewsRetentionTest';
+  const isolatedEnv = { ...ENV, RETENTION_TABLE_NAME: isolatedName };
+  const isolatedSchema = () => {
+    const body = schema(); body.tables[0].name = isolatedName; return body;
+  };
+  const withSchema = body => (request, kind) => kind === 'schema' ? { statusCode: 200, body } : undefined;
+  const schemaBlocked = run => {
+    assert.equal(run.summary.status, 'blocked');
+    assert.deepEqual(run.summary.error_codes, ['SCHEMA_INVALID']);
+    assert.equal(run.summary.analyzed, 0); assert.equal(run.summary.deleted, 0);
+    assert.equal(run.summary.audit_persisted, false);
+    assert.equal(run.requests.length, 1); assert.equal(run.requests[0].method, 'GET');
+  };
+  for (const env of [ENV, { ...ENV, RETENTION_TABLE_NAME: 'Reviews' }]) {
+    test(`nome padrao Reviews: ${env.RETENTION_TABLE_NAME === undefined ? 'ausente' : 'explicito'}`, () => {
+      assert.equal(simulate({ env }).summary.status, 'dry_run');
+    });
+  }
+  test('nome isolado configurado aceita schema e preserva IDs nas URLs e DRY_RUN', () => {
+    const run = simulate({ env: isolatedEnv, handler: withSchema(isolatedSchema()), pages: [{ records: [record(1)] }] });
+    assert.equal(run.summary.status, 'dry_run'); assert.equal(run.summary.eligible, 1);
+    assert.equal(run.summary.deleted, 0); assert.equal(deletes(run).length, 0);
+    assert.equal(run.summary.audit_finalized, true);
+    assert.ok(run.requests[0].url.includes('/meta/bases/' + BASE + '/tables'));
+    assert.ok(run.requests[1].url.includes('/' + BASE + '/' + TABLE + '?'));
+    assert.ok(run.requests.every(request => !request.url.includes(isolatedName)));
+  });
+  test('nome alternativo sem configuracao permanece bloqueado', () => schemaBlocked(simulate({ handler: withSchema(isolatedSchema()) })));
+  for (const name of ['Reviews', 'reviewsretentiontest', isolatedName + ' ', isolatedName + '\u200b']) {
+    test(`nome recebido divergente de configuracao: ${JSON.stringify(name)}`, () => {
+      const body = isolatedSchema(); body.tables[0].name = name;
+      schemaBlocked(simulate({ env: isolatedEnv, handler: withSchema(body) }));
+    });
+  }
+  for (const value of ['', ' ', ' ReviewsRetentionTest', 'ReviewsRetentionTest ', 'Reviews\nTest',
+    'Reviews\u200b', 'R'.repeat(256), null, 123, {}]) {
+    test(`nome configurado invalido: ${JSON.stringify(value)}`, () => {
+      const run = simulate({ env: { ...isolatedEnv, RETENTION_TABLE_NAME: value } });
+      assert.deepEqual(run.summary.error_codes, ['CONFIG_INVALID']); assert.equal(run.requests.length, 0);
+    });
+  }
+  for (const bad of [{ RETENTION_DEV_BASE_ID: '' }, { RETENTION_TABLE_ID: '' },
+    { RETENTION_AUDIT_TABLE_ID: '' }, { RETENTION_AUDIT_TABLE_ID: TABLE },
+    { RETENTION_PROTECTED_BASE_IDS: BASE }, { RETENTION_ENV: 'PROD' },
+    { RETENTION_DRY_RUN: 'false' }]) {
+    test(`nome configurado nao dispensa protecao: ${Object.keys(bad)[0]}`, () => {
+      const run = simulate({ env: { ...isolatedEnv, ...bad }, handler: withSchema(isolatedSchema()) });
+      assert.equal(run.requests.length, 0); assert.deepEqual(run.summary.error_codes, ['CONFIG_INVALID']);
+    });
+  }
+  test('nome correto em ID diferente nao e aceito', () => {
+    const body = isolatedSchema(); body.tables[0].id = 'tbl11111111111111';
+    schemaBlocked(simulate({ env: isolatedEnv, handler: withSchema(body) }));
+  });
+  test('nome de auditoria continua fixo mesmo com nome configurado', () => {
+    const body = isolatedSchema(); body.tables[1].name = 'RetentionAuditTest';
+    schemaBlocked(simulate({ env: isolatedEnv, handler: withSchema(body) }));
+  });
+  for (const field of schema().tables[1].fields) {
+    for (const change of ['ausente', 'tipo']) test(`tabela isolada exige auditoria ${field.name}: ${change}`, () => {
+      const body = isolatedSchema(); assert.equal(body.tables[1].fields.length, 18);
+      if (change === 'ausente') body.tables[1].fields = body.tables[1].fields.filter(item => item.name !== field.name);
+      else body.tables[1].fields.find(item => item.name === field.name).type = 'checkbox';
+      schemaBlocked(simulate({ env: isolatedEnv, handler: withSchema(body) }));
+    });
+  }
+  test('tabela isolada continua exigindo processed_at dateTime', () => {
+    const body = isolatedSchema(); body.tables[0].fields[0].type = 'date';
+    schemaBlocked(simulate({ env: isolatedEnv, handler: withSchema(body) }));
+  });
+  for (const action of ['list', 'delete']) test(`mudanca de nome durante ${action} bloqueia antes da operacao`, () => {
+    const run = simulate({ env: { ...DELETE_ENV, RETENTION_TABLE_NAME: isolatedName },
+      pages: [{ records: [record(1)] }], handler: withSchema(isolatedSchema()),
+      beforeGuard: (s, env) => { if (s.action === action) env.RETENTION_TABLE_NAME = 'Reviews'; } });
+    assert.ok(run.summary.error_codes.includes('GUARD_BLOCKED'));
+    assert.equal(deletes(run).length, 0);
+    if (action === 'list') assert.equal(run.requests.length, 1);
   });
   const invalidDates = [null, '', 123, {}, '2026-02-30T00:00:00Z', '2026-02-29T00:00:00Z',
     '2026-13-01T00:00:00Z', '2026-01-00T00:00:00Z', '2026-01-01T24:00:00Z',
@@ -302,5 +416,5 @@ function runTests(report = console.log) {
   return result;
 }
 
-module.exports = { runTests, simulate, schema, record, ENV, DELETE_ENV };
+module.exports = { runTests, runNode, simulate, schema, record, ENV, DELETE_ENV };
 if (require.main === module) process.exitCode = runTests().failed ? 1 : 0;

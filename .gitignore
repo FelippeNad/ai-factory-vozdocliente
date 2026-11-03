@@ -5,6 +5,9 @@ n8n_data/
 # Env
 .env
 .env.local
+.env.*
+!.env.example
+*.env
 *.env.backup
 
 # IDE
@@ -18,6 +21,10 @@ Thumbs.db
 # Logs
 *.log
 logs/
+# Coleta local de observabilidade (evidencias reais exigem revisao antes do Git).
+/router-local*.ndjson
+/router-local*.html
+/router-local*.json
 
 # Python (tests)
 __pycache__/
@@ -36,3 +43,6 @@ backup_*/
 
 # Security scan reports
 gitleaks-report.json
+/.tools/
+# Captura local com preview de IDs correlacionaveis; nao publicar sem revisao.
+/docs/evidencias/retention-6-Resumo sem PII.png

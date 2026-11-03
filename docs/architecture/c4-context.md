@@ -1,5 +1,7 @@
 # Arquitetura C4 — Nível 1: Contexto do Sistema
 
+> Escopo histórico: a infraestrutura Railway representada está indisponível após o período gratuito, conforme informado pelo responsável. Para estado atual e componentes DEV recomendados, consultar o README e docs/README.md. Não acessar PROD para apresentar a Etapa 2.
+
 ## Visão geral
 
 O VozDoCliente automatiza o processamento de avaliações de clientes. O sistema recebe uma avaliação, utiliza um modelo de linguagem para classificar seu sentimento e tema, registra o resultado e gera um alerta quando identifica uma avaliação negativa.

@@ -1,0 +1,581 @@
+{
+  "name": "VozDoCliente - v4 DEV (deduplicacao antes do LLM)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "review-v4-otimizado-dev",
+        "options": {
+          "rawBody": false
+        }
+      },
+      "id": "d9f35178-fa4f-596e-bb33-18e95fa2283d",
+      "name": "Webhook Review",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -200,
+        0
+      ],
+      "webhookId": "bc336a57-b729-5a01-9edc-13cc3183f2ab"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Regex reduz exposicao; nao garante anonimizacao. Sem logs ou copia do payload.\nconst invalidInput = () => { throw new Error('Entrada invalida para sanitizacao.'); };\nconst items = $input.all();\nif (!items.length) invalidInput();\n\nreturn items.map((item, index) => {\n  const body = item.json?.body;\n  if (!body || typeof body !== 'object' || Array.isArray(body) ||\n      typeof body.review_text !== 'string' || body.review_text.length > 20000) {\n    invalidInput();\n  }\n  let text = body.review_text.normalize('NFKC').replace(/[\\u200B-\\u200D\\uFEFF]/g, '');\n  if (!text.trim()) invalidInput();\n\n  // URLs completas antes de e-mails; dominios sem protocolo depois dos e-mails.\n  // Mantem pontuacao final da frase fora do marcador.\n  const maskUrl = (match) => {\n    const punctuation = match.match(/[.,;:!?)}\\]]+$/)?.[0] || '';\n    return '[URL]' + punctuation;\n  };\n  text = text.replace(/\\b(?:https?:\\/\\/|ftp:\\/\\/|www\\.)[^\\s<>\"']+/gi, maskUrl);\n  text = text.replace(/(?<![\\p{L}\\p{N}_.+%-])[\\p{L}\\p{N}_.+%-]+@[\\p{L}\\p{N}-]+(?:\\.[\\p{L}\\p{N}-]+)+/gu, '[EMAIL]');\n  text = text.replace(/(?<![\\p{L}\\p{N}])\\d{2}\\s*[.]?\\s*\\d{3}\\s*[.]?\\s*\\d{3}\\s*[\\/]?\\s*\\d{4}\\s*[-]?\\s*\\d{2}(?![\\p{L}\\p{N}])/gu, '[CNPJ]');\n  text = text.replace(/(?<![\\p{L}\\p{N}])[a-z\\d]{2}\\.[a-z\\d]{3}\\.[a-z\\d]{3}\\/[a-z\\d]{4}-\\d{2}(?![\\p{L}\\p{N}])/giu, '[CNPJ]');\n  text = text.replace(/(?<![\\p{L}\\p{N}])[a-z\\d]{12}\\d{2}(?![\\p{L}\\p{N}])/giu, '[CNPJ]');\n  text = text.replace(/(?<![\\p{L}\\p{N}_@])[\\p{L}\\p{N}](?:[\\p{L}\\p{N}-]*[\\p{L}\\p{N}])?(?:\\.[\\p{L}\\p{N}](?:[\\p{L}\\p{N}-]*[\\p{L}\\p{N}])?)*\\.[a-z]{2,63}(?::\\d{2,5})?(?:[/?#][^\\s<>\"']*)?(?![\\p{L}\\p{N}_@])/giu, maskUrl);\n\n  text = text.replace(/(?<![\\p{L}\\p{N}])0[358]00[\\s.-]?\\d{3}[\\s.-]?\\d{4}(?![\\p{L}\\p{N}])/gu, '[TELEFONE]');\n  // CPF antes dos demais telefones/CEP; numeros de 11 digitos sao ambiguos.\n  // Nao verifica digitos verificadores: sequencias sinteticas tambem sao mascaradas.\n  text = text.replace(/(?<![\\p{L}\\p{N}])\\d{3}\\s*[.]?\\s*\\d{3}\\s*[.]?\\s*\\d{3}\\s*[-]?\\s*\\d{2}(?![\\p{L}\\p{N}])/gu, '[CPF]');\n  text = text.replace(/(?<![\\p{L}\\p{N}])(?:\\+?55[\\s.-]?)?(?:\\(\\s*\\d{2}\\s*\\)[\\s.-]?|\\d{2}[\\s.-]?)(?:\\d[\\s.-]?)?\\d{4}[\\s.-]?\\d{4}(?![\\p{L}\\p{N}])/gu, '[TELEFONE]');\n  // Sem DDD: exige separador ou rotulo para reduzir colisao com numeros comuns.\n  text = text.replace(/(?<![\\p{L}\\p{N}])\\d{4,5}[ .-]\\d{4}(?![\\p{L}\\p{N}])/gu, '[TELEFONE]');\n  text = text.replace(/\\b(tel(?:efone)?|cel(?:ular)?|whats(?:app)?)\\s*[:=]?\\s*(\\d{8,9})(?!\\d)/gi, '$1: [TELEFONE]');\n  text = text.replace(/(?<![\\p{L}\\p{N}])\\d{5}[-.\\s]?\\d{3}(?![\\p{L}\\p{N}])/gu, '[CEP]');\n\n  return { json: { review_text_sanitized: text }, pairedItem: { item: index } };\n});"
+      },
+      "id": "800b14dc-1a83-58f0-8be0-4bf3bd2a77c6",
+      "name": "Sanitizar PII",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// O original e retomado apenas para a tratativa no Airtable, nunca para o LLM.\nconst raw = $json?.choices?.[0]?.message?.content;\nif (typeof raw !== 'string' || !raw.trim()) {\n  throw new Error('Resposta do LLM ausente ou invalida.');\n}\nlet parsed;\ntry { parsed = JSON.parse(raw); }\ncatch { throw new Error('Resposta do LLM nao e JSON valido.'); }\nif (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) ||\n    typeof parsed.sentiment !== 'string' || typeof parsed.theme !== 'string') {\n  throw new Error('Classificacao do LLM invalida.');\n}\nconst sentiment = parsed.sentiment.toLowerCase().trim();\nconst theme = parsed.theme.toLowerCase().trim();\nif (!['positivo', 'neutro', 'negativo'].includes(sentiment) ||\n    !['entrega', 'produto', 'atendimento', 'preco', 'app_bug'].includes(theme)) {\n  throw new Error('Classificacao do LLM fora dos valores permitidos.');\n}\nconst webhook = $('Webhook Review').first().json.body;\nreturn [{ json: {\n  review_id: webhook.review_id,\n  customer_name: webhook.customer_name,\n  source: webhook.source,\n  rating: webhook.rating,\n  review_text: webhook.review_text,\n  sentiment,\n  theme,\n  processed_at: new Date().toISOString()\n} }];"
+      },
+      "id": "30df2344-7a24-598c-9246-cee022608c57",
+      "name": "Parse + Merge",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "cond-negativo",
+              "leftValue": "={{ $('Parse + Merge').item.json.sentiment }}",
+              "rightValue": "negativo",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "bd26f870-7d97-5d8d-ae7e-828eb69fe7ae",
+      "name": "É negativo?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Preparar deduplicacao DEV').item.json.lookup_url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "maxRecords",
+              "value": "1"
+            },
+            {
+              "name": "fields[]",
+              "value": "review_id"
+            },
+            {
+              "name": "filterByFormula",
+              "value": "={{ \"{review_id}='\" + $json.review_id + \"'\" }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          }
+        },
+        "method": "GET"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1400,
+        0
+      ],
+      "id": "6bf94d4a-d392-5e1e-b12c-c922ecb1a893",
+      "name": "Airtable Buscar review_id",
+      "retryOnFail": false,
+      "onError": "stopWorkflow"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "already-exists",
+              "leftValue": "={{ $json.duplicate }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1800,
+        0
+      ],
+      "id": "8b6f2e6f-55ad-5c5a-b667-7a9fb6909bf5",
+      "name": "Confirmar novo? DEV"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-5.6-luna\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"Você é um classificador de avaliações de clientes da VozDoCliente. Classifique a avaliação por sentimento e tema.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": {{ JSON.stringify((() => { const text = $json.review_text_sanitized; if (typeof text !== 'string' || !text.trim()) { throw new Error('Texto sanitizado ausente ou invalido.'); } return text; })()) }}\n    }\n  ],\n  \"response_format\": {\n    \"type\": \"json_schema\",\n    \"json_schema\": {\n      \"name\": \"review_classification\",\n      \"strict\": true,\n      \"schema\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"sentiment\": {\n            \"type\": \"string\",\n            \"enum\": [\"positivo\", \"neutro\", \"negativo\"]\n          },\n          \"theme\": {\n            \"type\": \"string\",\n            \"enum\": [\"entrega\", \"produto\", \"atendimento\", \"preco\", \"app_bug\"]\n          }\n        },\n        \"required\": [\"sentiment\", \"theme\"],\n        \"additionalProperties\": false\n      }\n    }\n  }\n}",
+        "options": {
+          "timeout": 15000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          }
+        }
+      },
+      "id": "a6b0806c-b915-52d3-ae23-6dd0933586be",
+      "name": "LLM DEV",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1000,
+        0
+      ],
+      "retryOnFail": false,
+      "onError": "stopWorkflow"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Preparar deduplicacao DEV').item.json.lookup_url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"fields\": {\n    \"review_id\": {{ JSON.stringify($('Parse + Merge').item.json.review_id) }},\n    \"customer_name\": {{ JSON.stringify($('Parse + Merge').item.json.customer_name) }},\n    \"source\": {{ JSON.stringify($('Parse + Merge').item.json.source) }},\n    \"rating\": {{ $('Parse + Merge').item.json.rating }},\n    \"review_text\": {{ JSON.stringify($('Parse + Merge').item.json.review_text) }},\n    \"sentiment\": {{ JSON.stringify($('Parse + Merge').item.json.sentiment) }},\n    \"theme\": {{ JSON.stringify($('Parse + Merge').item.json.theme) }},\n    \"processed_at\": {{ JSON.stringify($('Parse + Merge').item.json.processed_at) }}\n  }\n}",
+        "options": {
+          "timeout": 15000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          }
+        }
+      },
+      "id": "f0c61bd6-aa7a-5a33-8e4f-b88a30440b79",
+      "name": "Airtable DEV",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2000,
+        0
+      ],
+      "retryOnFail": false,
+      "onError": "stopWorkflow"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/chat.postMessage",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"channel\": {{ JSON.stringify((() => { const channel = $env.CLASSIFIER_SLACK_DEV_CHANNEL_ID; if (typeof channel !== 'string' || channel.trim() !== channel || !/^[CG][A-Z0-9]{8,31}$/.test(channel)) { throw new Error('Canal Slack DEV invalido.'); } return channel; })()) }},\n  \"text\": {{ JSON.stringify(\":rotating_light: *Avaliação NEGATIVA — tema: \" + $('Parse + Merge').item.json.theme + \"*\\nNota: \" + (Number.isInteger($('Parse + Merge').item.json.rating) && $('Parse + Merge').item.json.rating >= 1 && $('Parse + Merge').item.json.rating <= 5 ? $('Parse + Merge').item.json.rating : \"indisponivel\") + \"\\nTime responsável, consultar a fila restrita no Airtable e responder em até 24h.\") }}\n}",
+        "options": {
+          "timeout": 15000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          }
+        }
+      },
+      "id": "7913303b-c851-5596-92ce-7473b590088d",
+      "name": "Slack DEV",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2400,
+        0
+      ],
+      "retryOnFail": false,
+      "onError": "stopWorkflow"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.lookup_url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "maxRecords",
+              "value": "1"
+            },
+            {
+              "name": "fields[]",
+              "value": "review_id"
+            },
+            {
+              "name": "filterByFormula",
+              "value": "={{ \"{review_id}='\" + $json.review_id + \"'\" }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          }
+        },
+        "method": "GET"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        400,
+        0
+      ],
+      "id": "af83369c-a427-5122-93b2-7b70aa6d23cb",
+      "name": "Airtable Precheck DEV",
+      "retryOnFail": false,
+      "onError": "stopWorkflow"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "already-exists",
+              "leftValue": "={{ $json.duplicate }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        800,
+        0
+      ],
+      "id": "1fc6e81d-de74-5867-82ab-72b0abffae8c",
+      "name": "Ja existe? DEV"
+    },
+    {
+      "name": "Preparar deduplicacao DEV",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "id": "f3673154-8ad5-53a2-b5f5-c47cd4b180af",
+      "position": [
+        200,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Variante DEV: sem fallback para a base da classificacao publicada e sem logs.\nconst base = $env.CLASSIFIER_DEV_BASE_ID, table = $env.CLASSIFIER_DEV_TABLE_ID;\nif ($env.CLASSIFIER_ENV !== 'DEV' || typeof base !== 'string' || base.trim() !== base\n    || !/^app[A-Za-z0-9]{14}$/.test(base) || typeof table !== 'string' || table.trim() !== table\n    || !/^tbl[A-Za-z0-9]{14}$/.test(table)) {\n  throw new Error('Configuracao DEV de classificacao invalida.');\n}\nconst items = $input.all();\nconst reviewId = $('Webhook Review').first().json.body?.review_id;\n// Identificadores opacos limitados: nao interpolar aspas, formulas ou texto pessoal.\nif (items.length !== 1 || typeof reviewId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(reviewId)\n    || reviewId.trim() !== reviewId) throw new Error('review_id invalido para deduplicacao.');\nconst text = items[0].json.review_text_sanitized;\nif (typeof text !== 'string' || !text.trim()) throw new Error('Texto sanitizado ausente ou invalido.');\nreturn [{ json: { review_id: reviewId, review_text_sanitized: text,\n  lookup_url: 'https://api.airtable.com/v0/' + base + '/' + table },\n  pairedItem: { item: 0 } }];\n"
+      }
+    },
+    {
+      "name": "Validar busca e restaurar texto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "id": "7104236e-7820-50b5-a4ff-77bbff3cf2f2",
+      "position": [
+        600,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Erro/resultado ambiguo nunca habilita o LLM. Nao propaga resposta Airtable.\nconst response = $input.first().json;\nconst records = response.body?.records;\nconst prepared = $('Preparar deduplicacao DEV').item.json;\nif (response.statusCode !== 200 || !Array.isArray(records) || records.length > 1\n    || records.some(record => !/^rec[A-Za-z0-9]{14}$/.test(record?.id || '')\n      || record.fields?.review_id !== prepared.review_id)) {\n  throw new Error('Resposta de deduplicacao invalida.');\n}\nconst text = $('Sanitizar PII').item.json.review_text_sanitized;\nif (typeof text !== 'string' || !text.trim()) throw new Error('Texto sanitizado ausente ou invalido.');\nreturn [{ json: { duplicate: records.length === 1, review_text_sanitized: text }, pairedItem: { item: 0 } }];\n"
+      }
+    },
+    {
+      "name": "Validar busca final DEV",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "id": "5467bde3-2643-5ffa-9768-07ca29e74a94",
+      "position": [
+        1600,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Erro/resultado ambiguo nunca habilita o LLM. Nao propaga resposta Airtable.\nconst response = $input.first().json;\nconst records = response.body?.records;\nconst prepared = $('Preparar deduplicacao DEV').item.json;\nif (response.statusCode !== 200 || !Array.isArray(records) || records.length > 1\n    || records.some(record => !/^rec[A-Za-z0-9]{14}$/.test(record?.id || '')\n      || record.fields?.review_id !== prepared.review_id)) {\n  throw new Error('Resposta de deduplicacao invalida.');\n}\nconst text = $('Sanitizar PII').item.json.review_text_sanitized;\nif (typeof text !== 'string' || !text.trim()) throw new Error('Texto sanitizado ausente ou invalido.');\nreturn [{ json: { duplicate: records.length === 1, review_text_sanitized: text }, pairedItem: { item: 0 } }];\n"
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Review": {
+      "main": [
+        [
+          {
+            "node": "Sanitizar PII",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sanitizar PII": {
+      "main": [
+        [
+          {
+            "node": "Preparar deduplicacao DEV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar deduplicacao DEV": {
+      "main": [
+        [
+          {
+            "node": "Airtable Precheck DEV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Airtable Precheck DEV": {
+      "main": [
+        [
+          {
+            "node": "Validar busca e restaurar texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar busca e restaurar texto": {
+      "main": [
+        [
+          {
+            "node": "Ja existe? DEV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ja existe? DEV": {
+      "main": [
+        [],
+        [
+          {
+            "node": "LLM DEV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM DEV": {
+      "main": [
+        [
+          {
+            "node": "Parse + Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse + Merge": {
+      "main": [
+        [
+          {
+            "node": "Airtable Buscar review_id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Airtable Buscar review_id": {
+      "main": [
+        [
+          {
+            "node": "Validar busca final DEV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar busca final DEV": {
+      "main": [
+        [
+          {
+            "node": "Confirmar novo? DEV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirmar novo? DEV": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Airtable DEV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Airtable DEV": {
+      "main": [
+        [
+          {
+            "node": "É negativo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "É negativo?": {
+      "main": [
+        [
+          {
+            "node": "Slack DEV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": false,
+    "saveExecutionProgress": false
+  },
+  "nodeGroups": [],
+  "tags": [
+    {
+      "updatedAt": "2026-10-05T21:28:48.966Z",
+      "createdAt": "2026-10-05T21:28:48.966Z",
+      "id": "oZzPQHflqTX4Hk0E",
+      "name": "cx"
+    },
+    {
+      "updatedAt": "2026-10-05T21:28:48.961Z",
+      "createdAt": "2026-10-05T21:28:48.961Z",
+      "id": "PI45CAiOw08tLyII",
+      "name": "prototipo"
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+{
+  "scope": "SIMULACAO_OFFLINE",
+  "real_slack_delivery": false,
+  "real_airtable_access": false,
+  "scenario": "schema_http_503",
+  "retention_status": "blocked",
+  "deleted": 0,
+  "observability": {
+    "event": {
+      "run_id": "retention-1001",
+      "stage": "retention",
+      "status": "failure",
+      "duration_ms": 2000,
+      "error_code": "HTTP_5XX"
+    },
+    "metrics": {
+      "runs_total": 1,
+      "runs_success": 0,
+      "runs_failure": 1,
+      "processed": 0,
+      "failures": 1,
+      "latency_ms": 2000
+    },
+    "alert_status": "sent",
+    "alert_error_code": null
+  },
+  "logs": [
+    {
+      "run_id": "retention-1001",
+      "stage": "retention",
+      "status": "failure",
+      "duration_ms": 2000,
+      "error_code": "HTTP_5XX",
+      "metrics": {
+        "runs_total": 1,
+        "runs_success": 0,
+        "runs_failure": 1,
+        "processed": 0,
+        "failures": 1,
+        "latency_ms": 2000
+      }
+    },
+    {
+      "run_id": "retention-1001",
+      "stage": "slack_alert",
+      "status": "success",
+      "duration_ms": 0,
+      "error_code": "NONE"
+    }
+  ],
+  "simulated_slack_requests": [
+    {
+      "method": "POST",
+      "url": "https://slack.com/api/chat.postMessage",
+      "body": {
+        "channel": "C00000000",
+        "mrkdwn": false,
+        "unfurl_links": false,
+        "unfurl_media": false,
+        "text": "[DEV] VozDoCliente: falha na retencao. run_id=retention-1001; status=failure; error_code=HTTP_5XX; processed=0; duration_ms=2000"
+      }
+    }
+  ]
+}

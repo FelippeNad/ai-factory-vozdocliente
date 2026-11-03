@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scope": "SIMULACAO_OFFLINE_DE_ESTADOS",
-  "executed_at_utc": "2026-11-03T00:01:19.797028+00:00",
+  "executed_at_utc": "2026-11-03T05:01:26.460764+00:00",
   "real_rotation": false,
   "real_provider_validation": false,
   "n8n_crypto_validated": false,
@@ -11,22 +11,22 @@
   "artifacts_before": {
     "n8n-mirror/workflows/vozdocliente-router-v3.json": "b99e13bedc9cfd0f0206269d55482815176d7586ad5f3b81556f2bd9eab5f816",
     "n8n-mirror/workflows/vozdocliente-router-v4.json": "aa77b2e65f39c900fb75810338b9fff6ca6ac95b584d2beb0971dfcca690c3f6",
-    "n8n-mirror/workflows/vozdocliente-retencao-v1.json": "361b5349048cf55ec3ba872f85c997c40e6506ac41f9f5455ac18dfd2fe86086",
-    "n8n-mirror/workflows/vozdocliente-retencao-demo.json": "e0f6ce7119baf202a3f8982e1d931e857e394a0e33d565596a4f60e4991a5a35",
-    "n8n-mirror/docker-compose.yml": "00222b7cbd0c6ebcb0331562f281936ed21f04c2f9fb26d031b3e21097542f52",
-    "n8n-mirror/docker-compose.retention.yml": "e382cb715cb54599c49adcd872309a035e2118500a8cb510ba9b0d020f2ea2da",
+    "n8n-mirror/workflows/vozdocliente-retencao-v1.json": "eb964f55372064cf1f7ff325c962d0456bd5031af64ac9be31d864fc00b14ec3",
+    "n8n-mirror/workflows/vozdocliente-retencao-demo.json": "d53d262a231db09b1dd3b682692d8be126f3561d38d3fbd2cdc2af78def99855",
+    "n8n-mirror/docker-compose.yml": "8ddfb3615e327aed7943bdc4dad133f555d8f9e0dd367b87b44429689ee6fd9f",
+    "n8n-mirror/docker-compose.retention.yml": "3dc4088162080a710280df94e5cfc6ffa49ea61fb05e5a8da8b8d42a2d3d305e",
     "Dockerfile": "b80ca4298b17aa72e8a76b6ac436f6ca3e711262e59b3d6c5a975aea4c2d934d",
-    ".env.example": "5bad5d57fc3c0a43a06f71b841f7313b70ee96054a875cf919709120ac09c134"
+    ".env.example": "a65b8a9aa28ac722da2876a0d7f779a8d16ebc5ab04b83a5c77ccf8497a3f2fa"
   },
   "artifacts_after": {
     "n8n-mirror/workflows/vozdocliente-router-v3.json": "b99e13bedc9cfd0f0206269d55482815176d7586ad5f3b81556f2bd9eab5f816",
     "n8n-mirror/workflows/vozdocliente-router-v4.json": "aa77b2e65f39c900fb75810338b9fff6ca6ac95b584d2beb0971dfcca690c3f6",
-    "n8n-mirror/workflows/vozdocliente-retencao-v1.json": "361b5349048cf55ec3ba872f85c997c40e6506ac41f9f5455ac18dfd2fe86086",
-    "n8n-mirror/workflows/vozdocliente-retencao-demo.json": "e0f6ce7119baf202a3f8982e1d931e857e394a0e33d565596a4f60e4991a5a35",
-    "n8n-mirror/docker-compose.yml": "00222b7cbd0c6ebcb0331562f281936ed21f04c2f9fb26d031b3e21097542f52",
-    "n8n-mirror/docker-compose.retention.yml": "e382cb715cb54599c49adcd872309a035e2118500a8cb510ba9b0d020f2ea2da",
+    "n8n-mirror/workflows/vozdocliente-retencao-v1.json": "eb964f55372064cf1f7ff325c962d0456bd5031af64ac9be31d864fc00b14ec3",
+    "n8n-mirror/workflows/vozdocliente-retencao-demo.json": "d53d262a231db09b1dd3b682692d8be126f3561d38d3fbd2cdc2af78def99855",
+    "n8n-mirror/docker-compose.yml": "8ddfb3615e327aed7943bdc4dad133f555d8f9e0dd367b87b44429689ee6fd9f",
+    "n8n-mirror/docker-compose.retention.yml": "3dc4088162080a710280df94e5cfc6ffa49ea61fb05e5a8da8b8d42a2d3d305e",
     "Dockerfile": "b80ca4298b17aa72e8a76b6ac436f6ca3e711262e59b3d6c5a975aea4c2d934d",
-    ".env.example": "5bad5d57fc3c0a43a06f71b841f7313b70ee96054a875cf919709120ac09c134"
+    ".env.example": "a65b8a9aa28ac722da2876a0d7f779a8d16ebc5ab04b83a5c77ccf8497a3f2fa"
   },
   "artifacts_unchanged": true,
   "scenarios": [
@@ -261,5 +261,5 @@
   ],
   "passed": 38,
   "failed": 0,
-  "report_sha256": "bbdcf6a1410b48f50aef04883921e73a5bf6b3f1b64ff4c4b3d3212c0771a50a"
+  "report_sha256": "3210511a59bef6638e7714b2fb1bed59ffc44f3856ac04656a7fe67ce9058f49"
 }

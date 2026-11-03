@@ -210,10 +210,12 @@ Não foram fornecidos comandos de migração real para uma versão não validada
    guardar versão/configuração/hash do relatório. Um resultado antigo “sem leaks”
    não prova ausência atual; `.gitignore` não remove commits anteriores.
 
-O repositório contém um relato histórico de Gitleaks e uma allowlist estreita para
-um placeholder. Isso não comprova rotação ou migração de conta pessoal. Não ampliar
-allowlist para esconder segredo real. Não houve nova varredura completa do histórico
-nesta etapa, nem foram lidos `.env` reais ou relatórios que possam conter tokens.
+A preparação da entrega de 03/11/2026 repetiu o Gitleaks no conteúdo candidato e
+nos commits alcançáveis de `etapa-2`, com exceção específica por commit, caminho e
+placeholder combinados por AND. Ver resultados e limites na
+[auditoria de publicação](../entrega-etapa-2.md). Isso não comprova rotação ou
+migração de conta pessoal. Não ampliar allowlist para esconder segredo real.
+Os `.env` reais não foram lidos ou alterados nessa auditoria.
 
 ## Exercício simulado, reproduzível e sem contas reais
 
@@ -240,6 +242,13 @@ Hashes de JSON usam serialização canônica; texto usa LF e codificação JSON 
 do SHA-256. Não confundir com hash de blob Git. Alterar artefato torna a evidência
 desatualizada; gerar novo relatório somente depois de revisar a mudança. O checksum
 não é assinatura nem prova de autoria e não impede alguém de editar e recalculá-lo.
+
+Na preparação de 03/11/2026, o relatório foi regenerado e verificado depois de
+revisar as alterações anteriores de `.env.example`, Composes e exports, incluindo
+`RETENTION_TABLE_NAME`. A versão anterior permanece no commit HEAD; a versão do
+workspace contém os hashes atuais. A atualização é um novo exercício offline,
+sem executar rotação real. Mudanças futuras nos artefatos exigem nova verificação;
+não apresentar um relatório de hashes antigos como validação dos arquivos atuais.
 
 O relatório informa `real_rotation=false`, `real_provider_validation=false` e
 `n8n_crypto_validated=false`. Ele comprova o exercício de estados, **não comprova

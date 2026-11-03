@@ -1,5 +1,7 @@
 # ADR-001 — Stack principal do VozDoCliente
 
+> Atualização da entrega (03/11/2026): este ADR registra a decisão histórica. Railway está indisponível após o período gratuito, conforme informado pelo responsável. O Router v4 otimizado DEV é o caminho local validado; LM Studio/Qwen é referência do protótipo. Consultar o README e o índice atual antes de executar procedimentos.
+
 ## Status
 
 Aceito

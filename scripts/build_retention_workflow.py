@@ -33,17 +33,29 @@ def build():
         "conditions": [{"id": "pending", "leftValue": "={{ $json.has_request }}", "rightValue": True,
                         "operator": {"type": "boolean", "operation": "true", "singleValue": True}}],
         "combinator": "and"}, "options": {}}, [-40, 0])
-    node("Airtable DEV operacao", "httpRequest", 4.1, {
+    # HTTP Request 4.1 declara sendBody com noDataExpression=true.
+    # A condicao fica em IF; cada transporte usa um booleano literal.
+    node("Operacao com body?", "if", 2, {"conditions": {
+        "options": {"caseSensitive": True, "leftValue": "", "typeValidation": "strict", "version": 1},
+        "conditions": [{"id": "has-body", "leftValue": "={{ $json.request.body !== undefined }}", "rightValue": True,
+                        "operator": {"type": "boolean", "operation": "true", "singleValue": True}}],
+        "combinator": "and"}, "options": {}}, [200, -160])
+    transport = {
         "method": "={{ $json.request.method }}", "url": "={{ $json.request.url }}",
         "authentication": "genericCredentialType", "genericAuthType": "httpHeaderAuth",
-        "sendBody": "={{ $json.request.body !== undefined }}", "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json.request.body || {}) }}",
         "options": {"timeout": 15000, "redirect": {"redirect": {"followRedirects": False}},
                     "response": {"response": {"fullResponse": True, "neverError": True, "responseFormat": "json"}}},
-    }, [200, -160], onError="continueRegularOutput", retryOnFail=False)
+    }
+    node("Airtable DEV operacao", "httpRequest", 4.1, {
+        **transport, "sendBody": True, "contentType": "json", "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.request.body) }}",
+    }, [440, -280], onError="continueRegularOutput", retryOnFail=False)
+    node("Airtable DEV sem body", "httpRequest", 4.1, {
+        **transport, "sendBody": False,
+    }, [440, -40], onError="continueRegularOutput", retryOnFail=False)
     code("Receber resposta", """const previous = $('Validar operacao DEV').item.json;
 return [{ json: { state: previous.state, response: $input.first().json }, pairedItem: { item: 0 } }];
-""", [440, -160])
+""", [680, -160])
     code("Resumo sem PII", common + """
 const s = $input.first().json.state;
 return [{ json: {
@@ -56,6 +68,21 @@ return [{ json: {
   preview_truncated: s.metrics.eligible > (s.config?.maxDelete ?? 0)
 } }];
 """, [200, 120])
+    code("Observabilidade DEV", common + "\n" + (SOURCE / "observe.js").read_text(encoding="utf-8"), [440, 160])
+    node("Alertar falha DEV?", "if", 2, {"conditions": {
+        "options": {"caseSensitive": True, "leftValue": "", "typeValidation": "strict", "version": 1},
+        "conditions": [{"id": "alert", "leftValue": "={{ $json.send_alert }}", "rightValue": True,
+                        "operator": {"type": "boolean", "operation": "true", "singleValue": True}}],
+        "combinator": "and"}, "options": {}}, [680, 160])
+    node("Slack DEV falha", "httpRequest", 4.1, {
+        "method": "POST", "url": "https://slack.com/api/chat.postMessage",
+        "authentication": "genericCredentialType", "genericAuthType": "httpHeaderAuth",
+        "sendBody": True, "contentType": "json", "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.slack_body) }}",
+        "options": {"timeout": 5000, "redirect": {"redirect": {"followRedirects": False}},
+                    "response": {"response": {"fullResponse": True, "neverError": True, "responseFormat": "json"}}},
+    }, [920, 80], onError="continueRegularOutput", retryOnFail=False)
+    code("Resultado observabilidade", (SOURCE / "observe-result.js").read_text(encoding="utf-8"), [1160, 160])
     connections = {}
 
     def connect(src, *targets):
@@ -65,9 +92,15 @@ return [{ json: {
     connect("Motor de retencao", "Limitar taxa")
     connect("Limitar taxa", "Validar operacao DEV")
     connect("Validar operacao DEV", "Ha operacao segura?")
-    connect("Ha operacao segura?", "Airtable DEV operacao", "Resumo sem PII")
+    connect("Ha operacao segura?", "Operacao com body?", "Resumo sem PII")
+    connect("Operacao com body?", "Airtable DEV operacao", "Airtable DEV sem body")
     connect("Airtable DEV operacao", "Receber resposta")
+    connect("Airtable DEV sem body", "Receber resposta")
     connect("Receber resposta", "Motor de retencao")
+    connect("Resumo sem PII", "Observabilidade DEV")
+    connect("Observabilidade DEV", "Alertar falha DEV?")
+    connect("Alertar falha DEV?", "Slack DEV falha", "Resultado observabilidade")
+    connect("Slack DEV falha", "Resultado observabilidade")
     return {"name": "VozDoCliente - Retencao DEV v1 (DRY_RUN por padrao)", "nodes": nodes,
             "connections": connections, "active": False, "pinData": {},
             "settings": {"executionOrder": "v1", "timezone": "America/Sao_Paulo", "executionTimeout": 900,
@@ -80,6 +113,7 @@ def build_demo():
     workflow["name"] = "VozDoCliente - Retencao DEMO OFFLINE (sem HTTP)"
     demo_env = {"RETENTION_ENV": "DEV", "RETENTION_DRY_RUN": "true", "RETENTION_DAYS": "30",
                 "RETENTION_DEV_BASE_ID": "app00000000000000", "RETENTION_TABLE_ID": "tbl00000000000001",
+                "RETENTION_TABLE_NAME": "Reviews",
                 "RETENTION_AUDIT_TABLE_ID": "tbl00000000000002", "RETENTION_PAGE_SIZE": "2"}
     for node in workflow["nodes"]:
         node["id"] = str(uuid.uuid5(uuid.NAMESPACE_URL, "vozdocliente/retention/demo/" + node["name"]))
@@ -87,13 +121,19 @@ def build_demo():
             node["parameters"]["jsCode"] = node["parameters"]["jsCode"].replace("settings($env)", "settings(" + json.dumps(demo_env) + ")")
         if node["type"] == "n8n-nodes-base.wait":
             node["webhookId"] = "vozdocliente-retention-demo-rate-limit"
-        if node["name"] == "Airtable DEV operacao":
+        if node["type"] == "n8n-nodes-base.httpRequest":
+            source = (SOURCE / "common.js").read_text(encoding="utf-8") + "\n" + (SOURCE / "demo-transport.js").read_text(encoding="utf-8")
+            if node["name"] == "Slack DEV falha":
+                source = "return [{ json: { statusCode: 200, body: { ok: true } }, pairedItem: { item: 0 } }];\n"
             node.update(type="n8n-nodes-base.code", typeVersion=2,
-                        parameters={"mode": "runOnceForAllItems", "language": "javaScript", "jsCode":
-                                    (SOURCE / "common.js").read_text(encoding="utf-8") + "\n" +
-                                    (SOURCE / "demo-transport.js").read_text(encoding="utf-8")})
+                        parameters={"mode": "runOnceForAllItems", "language": "javaScript", "jsCode": source})
             node.pop("onError", None)
             node.pop("retryOnFail", None)
+        if node["name"] == "Observabilidade DEV":
+            node["parameters"]["jsCode"] = node["parameters"]["jsCode"].replace("const alertEnv = $env;",
+                "const alertEnv = { RETENTION_ENV: 'DEV', RETENTION_ALERTS_ENABLED: 'true', RETENTION_SLACK_DEV_CHANNEL_ID: 'C00000000' };")
+        if node["name"] == "Resultado observabilidade":
+            node["parameters"]["jsCode"] = node["parameters"]["jsCode"].replace("const simulated = false;", "const simulated = true;")
     return workflow
 
 

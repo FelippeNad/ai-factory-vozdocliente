@@ -4,6 +4,70 @@ Todas as mudanças relevantes do projeto são registradas neste arquivo.
 
 ## [Não lançado] — Etapa 2
 
+- Preparada a entrega local sem novas funcionalidades: README/índice separam
+  validações n8n informadas pelo responsável, evidências offline e experimentos.
+  Railway indisponível após o período gratuito; deploy/smoke tests/ADRs antigos
+  identificados como históricos. Actions permanece só testes, com token de leitura.
+- Revisadas capturas `02` a `06`, `08`, `09`, `11` com recorte/tarjas sólidos, sem IA
+  generativa e preservando pixels técnicos; preparado resumo retention-6 sem
+  preview. Confirmada presença dos originais no histórico público; limpeza exige
+  decisão/autorização separada e não foi executada.
+- Executado Gitleaks local com redação de achados, regra de falso positivo
+  restrita por AND, proteção de arquivos locais e auditoria de publicação.
+  Evidência de rotação de estados atualizada para hashes atuais, sem rotação real.
+  Nenhum commit, push, merge, force push, deploy ou configuração externa alterada.
+
+- Nova candidata `vozdocliente-router-v4-observavel-dev.json`, observador por
+  subworkflow e Error Workflow separados, inativos e sem credenciais. Preservados
+  v3/v4, candidata otimizada anterior, retenção, PII/precheck/deduplicação final.
+- Eventos por lista de campos permitidos, correlação por execução, métricas de
+  tentativas/respostas LLM, persistência confirmada, duração e custos condicionais
+  a uso/preços. Captura explícita das falhas operacionais também no modo manual;
+  parada segura após observação. Error Trigger cobre interrupções automáticas,
+  com correlação parcial identificada quando o ID original não está disponível.
+- Reutilizados transporte/IF/resultado Slack da retenção; alerta Router P1 opt-in
+  em DEV. Compose local prevê IDs de integração, preços vazios, stdout opt-in e
+  rotação por tamanho. Relatório HTML sem rede calcula percentis e separa fontes;
+  simulação reproduzível e manifesto com hashes, testes/CI e roteiro manual.
+  Nenhuma API externa, ativação, deploy, alteração de credenciais ou commit.
+
+- Adicionado candidato DEV derivado da v4 com precheck de duplicatas antes do LLM,
+  preservando consulta final, sanitizador, prompt/schema e parser. Baselines v3/v4
+  intactos; export novo inativo, caminho próprio, sem credenciais e sem fallback PROD.
+- Benchmark offline com a mesma carga de 120 eventos: 120 -> 30 chamadas LLM
+  simuladas, 120 -> 150 consultas Airtable, mesmos 30 registros e 20 textos de alerta.
+  Média local do harness 458,654 -> 555,445 ms/lote (mais lenta); latência de APIs/LLM
+  real não medida. Registradas amostras/hashes, testes, trade-offs e evidências.
+
+- Reaproveitado o resumo da retenção para observabilidade DEV: evento estruturado
+  sem conteúdo de avaliações, contadores por execução, quantidade analisada e
+  duração total. Alerta Slack opt-in, somente DEV, com campos permitidos e falha
+  de entrega tratada sem resposta do provedor ou retry. DEMO permanece sem HTTP.
+- Acrescentados testes, simulação de HTTP 503 reproduzível, relatório explicitamente
+  sintético e roteiro de evidências/manuais. Compose dedicado prevê stdout de Code
+  em modo não manual e rotação Docker por tamanho; descarte por idade segue pendente.
+  Mantidos v3/v4, motor, guard e schema Airtable. Nenhuma API/deploy/commit executado.
+
+- Corrigido o envio de auditoria no HTTP Request 4.1 após confirmar no n8n DEV
+  instalado que `sendBody` tem `noDataExpression: true`: removida a expressão
+  incompatível desse parâmetro, adicionados IF de transporte e nodes com
+  `sendBody: true` literal para POST/PATCH JSON com `fields` e `false` literal
+  para GET/DELETE sem body. Explicitar somente `contentType=json` na correção
+  anterior era insuficiente. Exports operacional/DEMO regenerados; validação
+  estrutural cobre os dois ramos e rejeita retorno à expressão. Código instalado
+  testado com transporte em memória, credencial sintética e rede bloqueada.
+  Nenhuma proteção DEV, DRY_RUN, schema ou DELETE foi alterada.
+
+- Tornado configurável o nome esperado da tabela de retenção via
+  `RETENTION_TABLE_NAME` (padrão `Reviews`), permitindo `ReviewsRetentionTest`
+  sem renomear tabelas. Mantidos seleção por IDs, auditoria `RetentionAudit` com
+  18 campos obrigatórios, DRY_RUN e barreiras de DELETE; mudança de nome durante
+  execução bloqueia a próxima operação.
+- Atualizados fontes, gerador, exports inativos e Compose de retenção; adicionados
+  diagnóstico local de nomes/tipos e testes offline de aceitação/rejeição e
+  proteções. Documentada atualização local/reimportação sem tocar em credenciais
+  ou v3/v4. Nenhuma chamada externa, exclusão real, deploy ou commit realizado.
+
 - Adicionados mapa de dados pessoais, análise de transferências internacionais,
   checklist de estados/pendências e roteiro de demonstração em `docs/lgpd/`.
 - Documentadas hipóteses legais e papéis sujeitos à validação, sem presumir
@@ -12,8 +76,9 @@ Todas as mudanças relevantes do projeto são registradas neste arquivo.
   exposição em Git e distinção entre token, DEK e chave mestra n8n.
 - Executado exercício offline com 38 cenários simulados e relatório verificável
   por checksum e hashes dos artefatos; nenhuma credencial real foi rotacionada.
-- Atualizadas referências dos ADRs e documentos existentes. Workflows, Compose,
-  variáveis de exemplo e credenciais permanecem inalterados nesta continuação.
+- Atualizadas referências dos ADRs e documentos existentes. Na alteração
+  documental de conformidade/rotação, workflows, Compose, variáveis de exemplo e
+  credenciais foram preservados.
 
 - Adicionados workflows independentes e inativos de retenção DEV e demonstração
   offline sem HTTP, mantendo os arquivos v3/v4 de classificação intactos.

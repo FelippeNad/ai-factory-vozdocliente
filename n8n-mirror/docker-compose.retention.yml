@@ -21,6 +21,8 @@ services:
       RETENTION_DAYS: ${RETENTION_DAYS:-30}
       RETENTION_DEV_BASE_ID: ${RETENTION_DEV_BASE_ID:-}
       RETENTION_TABLE_ID: ${RETENTION_TABLE_ID:-}
+      # Sem ':' para preservar vazio explicito e deixar o motor bloquea-lo.
+      RETENTION_TABLE_NAME: ${RETENTION_TABLE_NAME-Reviews}
       RETENTION_AUDIT_TABLE_ID: ${RETENTION_AUDIT_TABLE_ID:-}
       RETENTION_PROTECTED_BASE_IDS: ${RETENTION_PROTECTED_BASE_IDS:-}
       RETENTION_CONFIRM_DEV_BASE_ID: ${RETENTION_CONFIRM_DEV_BASE_ID:-}
@@ -29,6 +31,8 @@ services:
       RETENTION_MAX_PAGES: ${RETENTION_MAX_PAGES:-10}
       RETENTION_MAX_ANALYZED: ${RETENTION_MAX_ANALYZED:-1000}
       RETENTION_MAX_DELETE: ${RETENTION_MAX_DELETE:-10}
+      RETENTION_ALERTS_ENABLED: ${RETENTION_ALERTS_ENABLED:-false}
+      RETENTION_SLACK_DEV_CHANNEL_ID: ${RETENTION_SLACK_DEV_CHANNEL_ID:-}
       EXECUTIONS_DATA_SAVE_ON_SUCCESS: none
       EXECUTIONS_DATA_SAVE_ON_ERROR: none
       EXECUTIONS_DATA_SAVE_ON_PROGRESS: "false"
@@ -40,7 +44,14 @@ services:
       EXECUTIONS_DATA_PRUNE_SOFT_DELETE_INTERVAL: "60"
       EXECUTIONS_DATA_PRUNE_HARD_DELETE_INTERVAL: "15"
       N8N_LOG_LEVEL: warn
+      # Code console.log: execucao manual vai ao browser; nao manual vai ao stdout.
+      CODE_ENABLE_STDOUT: "true"
       N8N_CONCURRENCY_PRODUCTION_LIMIT: "1"
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
     volumes:
       - retention_data:/home/node/.n8n
 volumes:
