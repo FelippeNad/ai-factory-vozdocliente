@@ -1,5 +1,17 @@
 # VozDoCliente — AI Review Router
 
+> [!IMPORTANT]
+> **📌 ENTREGA DA ETAPA 2 — VERSÃO ATUALIZADA**
+>
+> A implementação, os testes e as evidências da **Etapa 2 da AI Factory (PUCPR)** estão disponíveis na branch `etapa-2`.
+>
+> **[CLIQUE AQUI PARA ACESSAR A ENTREGA DA ETAPA 2](https://github.com/FelippeNad/ai-factory-vozdocliente/tree/etapa-2)**
+>
+> Esta versão inclui melhorias em segurança e privacidade (LGPD), sanitização de dados pessoais, deduplicação antes do LLM, retenção, auditoria, testes automatizados e observabilidade.
+>
+> O README da Etapa 2 distingue funcionalidades validadas no n8n, resultados de simulação e componentes experimentais ainda pendentes de validação.
+>
+> A documentação abaixo corresponde à versão anterior do projeto.
 Sistema de triagem automática de avaliações de clientes utilizando IA para classificação de sentimento e tema, persistência estruturada e roteamento de alertas para o time de CX.
 
 Este projeto é uma evolução de um protótipo herdado originalmente implementado em Make.com. A solução foi revisada e evoluída para uma arquitetura baseada em n8n, com separação entre desenvolvimento e produção, workflow versionado, testes automatizados, deploy público e CI/CD.
