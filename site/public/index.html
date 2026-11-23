@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#101423">
+  <meta name="description" content="VozDoCliente CX — monitoramento e triagem inteligente de avaliações com IA. Demonstração acadêmica com dados DEV.">
+  <title>VozDoCliente CX | Centro de Inteligência</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="ambient ambient-a"></div><div class="ambient ambient-b"></div>
+  <section id="login" class="login-screen" hidden>
+    <div class="login-card">
+      <div class="brand-icon big">V<span>✦</span></div>
+      <div class="eyebrow">AMBIENTE DE DEMONSTRAÇÃO · ETAPA 3</div>
+      <h1>Experiências melhores começam com <em>escuta ativa.</em></h1>
+      <p>Uma visão simples e inteligente sobre o que seus clientes estão dizendo.</p>
+      <form id="login-form">
+        <label for="password">Senha de acesso à demonstração</label>
+        <input id="password" type="password" autocomplete="current-password" minlength="10" placeholder="Digite a senha" required>
+        <button type="submit" class="btn btn-primary full">Entrar no dashboard <span>↗</span></button>
+        <p id="login-feedback" class="notice error" role="alert" hidden></p>
+      </form>
+      <small>Projeto acadêmico PUCPR · Apenas dados de testes</small>
+    </div>
+    <aside class="login-aside" aria-hidden="true"><div class="ring ring-1"></div><div class="ring ring-2"></div><div class="mock-mini"><span class="mock-stars">✦ ✦ ✦</span><div><b>Seu cliente tem algo a dizer.</b><p>A IA transforma avaliações em ações.</p></div><span class="mini-bar"></span></div></aside>
+  </section>
+
+  <div id="workspace" class="workspace" hidden>
+    <aside class="sidebar">
+      <div class="logo-row"><div class="brand-icon">V<span>✦</span></div><div><strong>VozDoCliente</strong><span class="brand-sub">CX INTELLIGENCE</span></div></div>
+      <div class="menu-label">ESPAÇO DE TRABALHO</div>
+      <nav aria-label="Navegação principal">
+        <a href="#visao-geral" class="nav-item active"><span class="nav-symbol">▦</span> Visão geral</a>
+        <a href="#nova-avaliacao" class="nav-item"><span class="nav-symbol">✎</span> Nova avaliação</a>
+        <a href="#historico" class="nav-item"><span class="nav-symbol">☷</span> Histórico DEV</a>
+        <a href="#evidencias" class="nav-item"><span class="nav-symbol">◈</span> Evidências</a>
+      </nav>
+      <div class="sidebar-spacer"></div>
+      <div class="sidebar-foot"><div class="avatar">CX</div><div><strong>Ambiente DEV</strong><span>Dados sintéticos · PUCPR</span></div><div class="status-orb"></div></div>
+      <button id="logout" class="nav-item logout" type="button"><span class="nav-symbol">↪</span> Sair</button>
+    </aside>
+    <div class="main-col">
+      <header class="topbar"><div class="breadcrumbs">Workspace <span>/</span> <strong>Overview</strong></div><div class="header-right"><span class="top-label"><span class="pulse-dot"></span> DEMO · DEV</span><button id="refresh" class="btn btn-outline btn-small" type="button">↻ Atualizar dados</button></div></header>
+      <main>
+        <section id="visao-geral" class="intro-section">
+          <div class="hero-copy"><div class="eyebrow"><span class="green-dot"></span> VOZ DO CLIENTE · CENTRO DE INTELIGÊNCIA</div><h1>Transforme feedback em <span>decisões melhores.</span></h1><p>Acompanhe sentimentos, identifique temas recorrentes e encaminhe experiências negativas para o time certo.</p><a href="#nova-avaliacao" class="btn btn-primary hero-button">Classificar avaliação <span>↗</span></a></div>
+          <div class="hero-art" aria-hidden="true"><div class="orbital orbital-one"></div><div class="orbital orbital-two"></div><div class="hero-center">✳</div><div class="floating-tag tag-a">✦ <b>IA aplicada</b></div><div class="floating-tag tag-b">● <b>Escuta em tempo real</b></div></div>
+        </section>
+
+        <div class="section-heading"><div><div class="eyebrow">PANORAMA</div><h2>Visão geral</h2></div><span class="muted chip">Amostra de até 100 registros do Airtable DEV</span></div>
+        <section class="metrics" aria-label="Indicadores da base DEV">
+          <article class="metric"><div class="metric-top"><span>Avaliações na amostra</span><div class="metric-icon">▤</div></div><div id="m-count" class="metric-number">—</div><div class="metric-hint">Registros consultados na base de testes</div></article>
+          <article class="metric"><div class="metric-top"><span>Avaliações negativas</span><div class="metric-icon coral">♡</div></div><div id="m-negative" class="metric-number">—</div><div id="m-negative-note" class="metric-hint">Da amostra consultada</div></article>
+          <article class="metric"><div class="metric-top"><span>Temas identificados</span><div class="metric-icon violet">◇</div></div><div id="m-themes" class="metric-number">—</div><div class="metric-hint">Categorias entre avaliações classificadas</div></article>
+          <article class="metric"><div class="metric-top"><span>Integração</span><div class="metric-icon">✓</div></div><div id="m-integration" class="integration-value"><span class="status-dot"></span> Aguardando...</div><div class="metric-hint">Conectividade do Airtable DEV</div></article>
+        </section>
+        <div id="global-feedback" class="notice" role="status" hidden></div>
+
+        <div class="content-grid">
+          <section id="nova-avaliacao" class="panel composer-panel">
+            <div class="panel-head"><div><div class="eyebrow">EXPERIMENTE A IA</div><h2>Nova avaliação</h2><p>Envie uma avaliação fictícia para nosso pipeline de classificação.</p></div><span class="icon-bubble">✦</span></div>
+            <form id="review-form">
+              <label for="review-text">O que o cliente disse?</label>
+              <textarea id="review-text" maxlength="700" minlength="10" required>O produto chegou rapidamente, bem embalado e com ótima qualidade. Superou minhas expectativas!</textarea>
+              <div class="field-row"><div><label for="rating">Nota do cliente</label><select id="rating"><option value="5">★★★★★  ·  5 estrelas</option><option value="4">★★★★☆  ·  4 estrelas</option><option value="3">★★★☆☆  ·  3 estrelas</option><option value="2">★★☆☆☆  ·  2 estrelas</option><option value="1">★☆☆☆☆  ·  1 estrela</option></select></div><div><label>Exemplos rápidos</label><div class="example-row"><button id="example-positive" type="button" class="btn btn-soft btn-small">☺ Positivo</button><button id="example-negative" type="button" class="btn btn-soft btn-small">☹ Negativo</button></div></div></div>
+              <div class="form-tip">🔒 Utilize somente textos fictícios. Nada de nomes reais, documentos, telefones ou dados de clientes.</div>
+              <button id="submit-review" type="submit" class="btn btn-primary full">Enviar para classificação <span>→</span></button>
+            </form>
+            <div id="submit-result" class="submit-result" aria-live="polite" hidden></div>
+          </section>
+          <section class="panel chart-panel"><div class="panel-head"><div><div class="eyebrow">CLASSIFICAÇÃO AUTOMÁTICA</div><h2>Distribuição de sentimentos</h2><p>Recorte dos registros retornados pela base DEV.</p></div><span class="chart-icon">◌</span></div>
+            <div class="bars" id="bars"><div class="bar-row"><div class="bar-label">Positivas <b id="bar-positive-number">—</b></div><div class="track"><div id="bar-positive" class="bar positive"></div></div></div><div class="bar-row"><div class="bar-label">Neutras <b id="bar-neutral-number">—</b></div><div class="track"><div id="bar-neutral" class="bar neutral"></div></div></div><div class="bar-row"><div class="bar-label">Negativas <b id="bar-negative-number">—</b></div><div class="track"><div id="bar-negative" class="bar negative"></div></div></div></div>
+            <div class="chart-divider"></div><div class="mini-note"><span class="starburst">✳</span><p><b>Do feedback à ação.</b> A classificação usa OpenAI, deduplicação antes do LLM, armazenamento no Airtable DEV e alerta opcional no Slack DEV para avaliações negativas.</p></div>
+          </section>
+        </div>
+
+        <section id="historico" class="panel history-panel"><div class="panel-head"><div><div class="eyebrow">REGISTROS DE TESTE</div><h2>Últimas avaliações</h2><p>Somente metadados de classificação — não exibimos textos originais nem nomes.</p></div><span class="muted chip">Amostra DEV</span></div>
+          <div class="table-scroll"><table><thead><tr><th>Review ID</th><th>Sentimento</th><th>Tema</th><th>Nota</th><th>Processamento</th></tr></thead><tbody id="history-body"><tr><td colspan="5" class="empty-row">Carregando registros DEV...</td></tr></tbody></table></div>
+        </section>
+
+        <section id="evidencias" class="evidence-section"><div class="section-heading"><div><div class="eyebrow">EVIDÊNCIAS DA ETAPA 2</div><h2>Resultados mensuráveis</h2></div><span class="muted chip">Benchmark DEV controlado · 15 envios por versão</span></div>
+          <div class="evidence-grid"><article class="evidence-card"><div class="kicker">CHAMADAS AO LLM</div><strong>−66,67%</strong><p>15 → 5 chamadas no lote de benchmark</p></article><article class="evidence-card"><div class="kicker">LATÊNCIA MÉDIA</div><strong>−35,34%</strong><p>2.396,87 → 1.549,93 ms</p></article><article class="evidence-card"><div class="kicker">VALIDADE ESTRUTURAL</div><strong>100%</strong><p>Em ambas as versões no lote controlado</p></article></div>
+          <p class="disclaimer"><b>Limitações:</b> resultados de um teste DEV sintético e sequencial, com duplicatas; não representam desempenho, SLA ou ROI de produção. A acurácia de classificação não foi medida nesse benchmark. Em outra coleta de apenas cinco exemplos, a acurácia conjunta foi de 80%, abaixo da meta inicial de 90%. Custos totais da infraestrutura não foram apurados.</p>
+        </section>
+      </main>
+      <footer>© 2026 VozDoCliente · Projeto acadêmico PUCPR / AI Factory <span>Ambiente de demonstração · Não utilizar dados reais</span></footer>
+    </div>
+  </div>
+</body>
+</html>
