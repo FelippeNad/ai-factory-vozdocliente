@@ -25,6 +25,10 @@ logs/
 /router-local*.ndjson
 /router-local*.html
 /router-local*.json
+# Benchmark real DEV: planos de uso unico, IDs tecnicos e resultados locais.
+/router-benchmark-local*/
+# Exports locais importados podem conter referencias de credenciais/destinos.
+/benchmark-*-importado.json
 
 # Python (tests)
 __pycache__/
@@ -37,7 +41,7 @@ venv/
 node_modules/
 npm-debug.log*
 
-# Backups locais da Sther
+# Backups locais do projeto
 *.bkp
 backup_*/
 

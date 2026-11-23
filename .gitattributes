@@ -5,3 +5,10 @@
 /docs/evidencias/router-observabilidade-simulacao.ndjson text eol=lf
 /docs/evidencias/router-observabilidade-simulacao.json text eol=lf
 /docs/evidencias/router-observabilidade-simulacao.html text eol=lf
+/n8n-mirror/benchmarks/*.json text eol=lf
+/docs/evidencias/benchmark-dev-*.json text eol=lf
+/docs/evidencias/benchmark-dev-real.html text eol=lf
+/docs/evidencias/router-observabilidade-dev-real.* text eol=lf
+/docs/evidencias/router-qualidade-dev-rotulos.json text eol=lf
+/docs/evidencias/etapa-2-evidencias-manifesto.json text eol=lf
+/scripts/export_etapa2_evidence.py text eol=lf

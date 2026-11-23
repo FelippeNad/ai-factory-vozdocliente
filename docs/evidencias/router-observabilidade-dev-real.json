@@ -1,0 +1,90 @@
+{
+  "schema": "vozdocliente.observability.public-summary.v1",
+  "scope": "SEPARATE_DEV_COLLECTION_SYNTHETIC_LIMITED",
+  "valid_events": 127,
+  "rejected_lines": 0,
+  "summary": {
+    "n8n": {
+      "window_start": "2026-11-23T01:13:39.231Z",
+      "window_end": "2026-11-23T01:59:13.034Z",
+      "observed_runs": 11,
+      "terminal_runs": 11,
+      "incomplete_runs": 0,
+      "telemetry_failures": 0,
+      "handler_only_incidents": 0,
+      "received_known": 11,
+      "received_unknown_runs": 0,
+      "success": 7,
+      "duplicate": 1,
+      "failure": 3,
+      "error_rate": 0.2727272727272727,
+      "latency_n": 10,
+      "p50_ms": 3742,
+      "p95_ms": 6730,
+      "p99_ms": 6730,
+      "llm_attempts_known": 7,
+      "llm_attempts_unknown_runs": 1,
+      "persisted_confirmed": 7,
+      "persisted_unknown_runs": 1,
+      "estimated_cost_usd_known_subtotal": 0.00021700000000000002,
+      "cost_known_runs": 8,
+      "cost_unknown_runs": 3,
+      "schema_valid_rate": 1.0,
+      "schema_evaluated_responses": 7,
+      "classification_accuracy": 0.8,
+      "human_labels": 5,
+      "quality_unknown_runs": 1,
+      "stage_latency": {
+        "received": {
+          "n": 8,
+          "p50_ms": 0,
+          "p95_ms": 0,
+          "p99_ms": 0
+        },
+        "sanitization": {
+          "n": 8,
+          "p50_ms": 30,
+          "p95_ms": 49,
+          "p99_ms": 49
+        },
+        "precheck": {
+          "n": 8,
+          "p50_ms": 860,
+          "p95_ms": 2649,
+          "p99_ms": 2649
+        },
+        "llm": {
+          "n": 7,
+          "p50_ms": 1656,
+          "p95_ms": 2294,
+          "p99_ms": 2294
+        },
+        "final_dedup": {
+          "n": 7,
+          "p50_ms": 669,
+          "p95_ms": 692,
+          "p99_ms": 692
+        },
+        "persistence": {
+          "n": 7,
+          "p50_ms": 1159,
+          "p95_ms": 1294,
+          "p99_ms": 1294
+        },
+        "business_slack": {
+          "n": 2,
+          "p50_ms": 249,
+          "p95_ms": 257,
+          "p99_ms": 257
+        }
+      },
+      "sentiment_correct": 4,
+      "theme_correct": 5,
+      "joint_correct": 4,
+      "sentiment_accuracy": 0.8,
+      "theme_accuracy": 1.0,
+      "joint_accuracy": 0.8,
+      "quality_sample": "synthetic_limited"
+    }
+  }
+}

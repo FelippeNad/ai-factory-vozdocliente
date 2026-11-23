@@ -9,6 +9,68 @@ import re
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACT = json.loads((ROOT / 'n8n-mirror/observability/router-contract.json').read_text(encoding='utf-8'))
+LABEL_SCHEMA = 'vozdocliente.router.quality-labels.v1'
+SENTIMENTS = ('positivo', 'neutro', 'negativo')
+THEMES = ('entrega', 'produto', 'atendimento', 'preco', 'app_bug')
+
+
+def validate_labels(raw):
+    """Allowlist estrita: sem texto livre, PII ou rotulos de simulacao offline."""
+    if (not isinstance(raw, dict) or set(raw) != {'schema', 'source', 'sample', 'evaluations'}
+            or raw['schema'] != LABEL_SCHEMA or raw['source'] != 'n8n'
+            or raw['sample'] != 'synthetic_limited' or not isinstance(raw['evaluations'], list)):
+        raise ValueError('Arquivo de rotulos invalido: contrato, fonte ou amostra invalida')
+    seen = set()
+    for row in raw['evaluations']:
+        if (not isinstance(row, dict)
+                or set(row) != {'run_id', 'expected_sentiment', 'expected_theme', 'actual_sentiment', 'actual_theme'}
+                or not isinstance(row['run_id'], str)
+                or not re.fullmatch(r'router-\d{1,30}', row['run_id'])
+                or any(row[key] not in SENTIMENTS for key in ('expected_sentiment', 'actual_sentiment'))
+                or any(row[key] not in THEMES for key in ('expected_theme', 'actual_theme'))):
+            raise ValueError('Avaliacao rotulada invalida: somente ID tecnico e enums permitidos')
+        if row['run_id'] in seen:
+            raise ValueError('Arquivo de rotulos invalido: run_id duplicado')
+        seen.add(row['run_id'])
+    return raw
+
+
+def read_labels(path):
+    def unique_keys(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError('Chave JSON repetida')
+            result[key] = value
+        return result
+
+    try:
+        if path.stat().st_size > 10 * 1024 * 1024:
+            raise ValueError('Limite excedido')
+        raw = json.loads(path.read_text(encoding='utf-8-sig'), object_pairs_hook=unique_keys)
+    except (ValueError, OSError):
+        # Nunca ecoar conteudo rejeitado, inclusive mensagens do decoder JSON.
+        raise ValueError('Nao foi possivel ler rotulos: JSON invalido, inacessivel ou acima de 10 MiB') from None
+    return validate_labels(raw)
+
+
+def label_metrics(labels, terminal):
+    successful = {e['run_id'] for e in terminal if e['status'] == 'success' and e['correlation'] == 'execution'}
+    rows = labels['evaluations']
+    if any(row['run_id'] not in successful for row in rows):
+        raise ValueError('Rotulos exigem run_id com terminal de sucesso na coleta n8n fornecida')
+    sentiment = sum(row['expected_sentiment'] == row['actual_sentiment'] for row in rows)
+    theme = sum(row['expected_theme'] == row['actual_theme'] for row in rows)
+    joint = sum(row['expected_sentiment'] == row['actual_sentiment']
+                and row['expected_theme'] == row['actual_theme'] for row in rows)
+    count = len(rows)
+    return {'human_labels': count, 'sentiment_correct': sentiment, 'theme_correct': theme, 'joint_correct': joint,
+            'sentiment_accuracy': sentiment / count if count else None,
+            'theme_accuracy': theme / count if count else None,
+            'joint_accuracy': joint / count if count else None,
+            # Compatibilidade: o campo historico passa a representar o acerto conjunto.
+            'classification_accuracy': joint / count if count else None,
+            'quality_sample': labels['sample']}
 
 
 def canonical(raw):
@@ -76,7 +138,9 @@ def percentile(values, quantile):
     return sorted(values)[max(0, math.ceil(len(values) * quantile) - 1)] if values else None
 
 
-def aggregate(events):
+def aggregate(events, labels=None):
+    if labels is not None:
+        validate_labels(labels)
     result = {}
     for source in CONTRACT['sources']:
         selected = [event for event in events if event['source'] == source]
@@ -129,12 +193,30 @@ def aggregate(events):
             'schema_evaluated_responses': responses, 'classification_accuracy': None, 'human_labels': 0,
             'quality_unknown_runs': len(terminal) - len(evaluated),
             'stage_latency': stage_latency}
+        if labels is not None and source == 'n8n':
+            result[source].update(label_metrics(labels, terminal))
+    if labels is not None and labels['evaluations'] and 'n8n' not in result:
+        raise ValueError('Rotulos exigem run_id com terminal de sucesso na coleta n8n fornecida')
     return result
 
 
 def render(summary, rejected):
     sections = []
     for source, data in summary.items():
+        quality = ''
+        if 'quality_sample' in data:
+            quality_rows = ''
+            for title, key, correct in (('Acurácia de sentimento', 'sentiment_accuracy', 'sentiment_correct'),
+                                        ('Acurácia de tema', 'theme_accuracy', 'theme_correct'),
+                                        ('Acurácia conjunta', 'joint_accuracy', 'joint_correct')):
+                value = 'não medido' if data[key] is None else f"{data[key]:.0%} ({data[correct]}/{data['human_labels']})"
+                quality_rows += '<tr><th>' + title + '</th><td>' + value + '</td></tr>'
+            quality = ('<h3>Qualidade — avaliação manual</h3><p>Amostra sintética e limitada, executada no n8n DEV. '
+                       'Não representa qualidade em produção. Resultados obtidos foram transcritos manualmente; '
+                       'a telemetria confirma o sucesso do run, não o conteúdo da classificação. '
+                       'Validade estrutural (schema_valid_rate) permanece uma métrica independente.</p>'
+                       '<table><tr><th>Total de avaliações rotuladas</th><td>' + str(data['human_labels'])
+                       + '</td></tr>' + quality_rows + '</table>')
         label = 'SIMULACAO OFFLINE — sem APIs' if source == 'offline_simulation' else 'EVENTOS n8n — revisar origem da coleta'
         cells = [(key, 'nao medido' if value is None else value) for key, value in data.items() if key != 'stage_latency']
         rows = ''.join('<tr><th>' + html.escape(key) + '</th><td>' + html.escape(str(value)) + '</td></tr>' for key, value in cells)
@@ -145,7 +227,7 @@ def render(summary, rejected):
                          + str(value['p50_ms']) + '</td><td>' + str(value['p95_ms']) + '</td><td>' + str(value['p99_ms']) + '</td></tr>'
                          for stage, value in data['stage_latency'].items())
         sections.append('<section><h2>' + label + '</h2><div class="bars">' + bars + '</div><table>' + rows
-                        + '</table><h3>Latencia por etapa concluida (ms)</h3><table><tr><th>Etapa</th><th>N</th><th>p50</th><th>p95</th><th>p99</th></tr>'
+                        + '</table>' + quality + '<h3>Latencia por etapa concluida (ms)</h3><table><tr><th>Etapa</th><th>N</th><th>p50</th><th>p95</th><th>p99</th></tr>'
                         + stages + '</table></section>')
     return '''<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>VozDoCliente — observabilidade Router DEV</title><style>
@@ -165,9 +247,14 @@ def main():
     parser.add_argument('--input', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--events-output', type=Path)
+    parser.add_argument('--labels', type=Path, help='JSON opcional de avaliacoes manuais da amostra sintetica n8n DEV')
     args = parser.parse_args()
     events, rejected = read_events(args.input)
-    summary = aggregate(events)
+    try:
+        labels = read_labels(args.labels) if args.labels else None
+        summary = aggregate(events, labels)
+    except ValueError as error:
+        parser.error(str(error))
     args.output.write_text(render(summary, rejected), encoding='utf-8')
     if args.events_output:
         args.events_output.write_text(''.join(json.dumps(e, ensure_ascii=False) + '\n' for e in events), encoding='utf-8')

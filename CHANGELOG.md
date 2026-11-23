@@ -4,6 +4,20 @@ Todas as mudanças relevantes do projeto são registradas neste arquivo.
 
 ## [Não lançado] — Etapa 2
 
+- **23/11/2026 — consolidação final:** benchmark real DEV
+  `097ec2ffc37c4e4081bb54d9a0c174c0`, 15 requisições por versão, 5 sucessos,
+  10 duplicatas e nenhuma falha por versão. LLM 15 → 5 e custo estimado
+  US$ 0,000675 → 0,000225 (−66,67%); média 2396,87 → 1549,93 ms (−35,34%);
+  GETs Airtable 15 → 20 (+33,33%). Mesmos cinco registros, estrutura 100%.
+  Acurácia persistida não avaliada; a conjunta de 80% pertence à coleta separada
+  de 11 execuções/cinco rótulos. [Relatório real](docs/evidencias/benchmark-dev-real.html),
+  [dashboard](docs/evidencias/router-observabilidade-dev-real.html) e manifesto
+  sanitizado reproduzíveis offline. Sem novas chamadas, mudanças de workflows,
+  produção, commit ou push nesta consolidação.
+
+Registros anteriores abaixo preservam o estado de cada implementação; resultados
+simulados não são substituídos nem combinados com o benchmark real.
+
 - Preparada a entrega local sem novas funcionalidades: README/índice separam
   validações n8n informadas pelo responsável, evidências offline e experimentos.
   Railway indisponível após o período gratuito; deploy/smoke tests/ADRs antigos

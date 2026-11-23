@@ -1,6 +1,6 @@
 # Arquitetura C4 — Nível 2: Containers
 
-> Escopo histórico: o diagrama representa a arquitetura de produção da Etapa 1, indisponível após o período gratuito do Railway segundo o responsável. Não comprova disponibilidade atual. A demonstração da Etapa 2 usa Router otimizado DEV local e retenção DRY_RUN; observabilidade integrada do Router permanece experimental.
+> Escopo histórico: o diagrama representa a arquitetura de produção da Etapa 1, indisponível após o período gratuito do Railway segundo o responsável. Não comprova disponibilidade atual. A Etapa 2 usa Router otimizado DEV local e retenção DRY_RUN; a coleta observável controlada e o benchmark real DEV foram concluídos, com limites registrados no [README atual](../../README.md).
 
 ## Visão geral
 

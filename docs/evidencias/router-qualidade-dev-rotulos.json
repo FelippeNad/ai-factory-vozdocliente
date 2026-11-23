@@ -1,0 +1,12 @@
+{
+  "schema": "vozdocliente.router.quality-labels.v1",
+  "source": "n8n",
+  "sample": "synthetic_limited",
+  "evaluations": [
+    {"run_id": "router-72", "expected_sentiment": "positivo", "expected_theme": "entrega", "actual_sentiment": "positivo", "actual_theme": "entrega"},
+    {"run_id": "router-74", "expected_sentiment": "negativo", "expected_theme": "produto", "actual_sentiment": "negativo", "actual_theme": "produto"},
+    {"run_id": "router-76", "expected_sentiment": "positivo", "expected_theme": "atendimento", "actual_sentiment": "positivo", "actual_theme": "atendimento"},
+    {"run_id": "router-78", "expected_sentiment": "neutro", "expected_theme": "preco", "actual_sentiment": "positivo", "actual_theme": "preco"},
+    {"run_id": "router-80", "expected_sentiment": "negativo", "expected_theme": "app_bug", "actual_sentiment": "negativo", "actual_theme": "app_bug"}
+  ]
+}

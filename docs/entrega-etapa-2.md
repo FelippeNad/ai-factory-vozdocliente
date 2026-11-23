@@ -1,5 +1,71 @@
 # Auditoria de preparação da Etapa 2
 
+## Consolidação final em 23/11/2026
+
+O [README atual](../README.md) e o [benchmark real DEV](benchmark-real-deduplicacao-dev.md)
+incorporam a coleta existente de `router-benchmark-local-02/`, ID
+`097ec2ffc37c4e4081bb54d9a0c174c0`. Recalculado offline a partir de `plan.json`,
+`records.ndjson` e `dispatch.ndjson`, o resultado coincide com o `report.json`
+produzido por `scripts/router_real_benchmark.py report`: 30 envios e 30 terminais.
+Não houve novo processamento n8n, chamada externa, alteração de workflows,
+produção, credenciais, commit ou push nesta consolidação.
+
+Resultado por versão: 15 requisições, 5 sucessos/persistências, 10 duplicatas,
+zero falhas e validade estrutural de 100%. LLM 15 → 5 e custo estimado
+US$ 0,000675 → 0,000225 (−66,67%); média 2396,87 → 1549,93 ms (−35,34%);
+GETs Airtable 15 → 20 (+33,33%). Acurácia persistida não avaliada; zero snapshots
+e zero casos comparados. A conjunta de 80% em cinco rótulos pertence à coleta
+separada de 11 runs. Nenhum lote é representativo de produção.
+
+### Artefatos desta consolidação
+
+- README principal, índice documental, guia n8n, changelog, guias de observabilidade,
+  otimização, sanitização, retenção, checklist LGPD e roteiro de evidências revisados.
+- [Relatório real HTML](evidencias/benchmark-dev-real.html),
+  [JSON agregado](evidencias/benchmark-dev-real.json),
+  [30 amostras numéricas permitidas](evidencias/benchmark-dev-amostras.json),
+  [dashboard real separado](evidencias/router-observabilidade-dev-real.html),
+  [seu JSON agregado](evidencias/router-observabilidade-dev-real.json) e
+  [manifesto SHA-256](evidencias/etapa-2-evidencias-manifesto.json).
+- [Exportador offline](../scripts/export_etapa2_evidence.py),
+  [validador de links](../scripts/validate_doc_links.py) e
+  [testes das evidências documentais](../tests/test_etapa2_public_evidence.py).
+  `--check` reproduz a validação com o checkout, sem exigir logs privados.
+- `.gitignore` protege exports locais reimportados; `.gitattributes` fixa LF nos
+  artefatos com hashes para preservar consistência em clones Windows/Linux.
+
+As evidências públicas contêm agregados e campos numéricos permitidos, sem textos,
+nomes, destinos, referências de credenciais ou logs brutos. Coletas originais e
+planos completos permanecem ignorados; hashes permitem conferir consistência com
+os originais locais, não demonstram autenticidade independente. Os rótulos manuais
+separados conservam apenas run IDs técnicos e enums, sem conteúdo pessoal.
+
+### Validação final local
+
+| Verificação | Resultado |
+| --- | --- |
+| `python -m unittest discover -s tests -v` | **100 testes aprovados**, incluindo 14 novos testes de evidências/links; mocks e rede bloqueada onde aplicável |
+| `tests/validate_workflows.py` / `tests/test_routing_logic.py` | Estrutura aprovada / **10 verificações aprovadas** |
+| Sete suítes JavaScript | PII, retenção, diagnóstico de schema, observabilidade da retenção, otimização, observabilidade Router e benchmark em VM: **todas aprovadas**, sem fornecedores |
+| Quatro geradores com `--check` | Exports de retenção, otimização, observabilidade Router e benchmark sincronizados |
+| `scripts/export_etapa2_evidence.py --check` | Hashes, allowlist numérica, agregados, reduções, HTMLs e separação semântica aprovados |
+| `scripts/validate_doc_links.py` | Links relativos e âncoras de README, changelog, guia n8n e documentação aprovados; sem rede |
+| Rotação `--verify` | **38 cenários simulados** consistentes; nenhuma rotação real |
+| Gitleaks local em `docs/`, com redação | Nenhum segredo detectado; não é verificação de toda PII ou remediação do histórico |
+| `git diff --check` | Sem erros de whitespace |
+
+Workflows, scripts operacionais do comparador/dashboard e coleta original foram
+preservados; a consolidação acrescenta somente documentação, evidências e utilitários
+offline de publicação/validação. CI remoto não executado. Publicação continua
+pendente de autorização, decisão sobre capturas históricas e conferência externa
+de autodeploy/webhooks. Esses pontos não são resolvidos por testes locais.
+
+## Auditoria histórica de 03/11/2026
+
+O restante deste documento preserva o registro daquela revisão. Contagens de testes,
+inventário de arquivos, estados experimentais e ausência de chamadas descrevem
+**03/11/2026**, não substituem os resultados finais de 23/11 acima.
+
 Revisão local: **03/11/2026**, branch **`etapa-2`**, HEAD
 `27652b0`. Sem commit, staging pelo agente, push, merge, force push, deploy,
 ativação de workflow, alteração de credenciais ou configurações externas.

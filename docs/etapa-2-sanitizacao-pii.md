@@ -215,5 +215,8 @@ Ainda produzir em ambiente isolado, **sem APIs reais**:
    proxy/n8n/provedor, backups e histórico antigo. A revisão de política e acessos
    não é comprovada pela execução dos testes unitários.
 
-Evidências de integração/engine, governança e retenção permanecem **pendentes**;
-não devem ser apresentadas como executadas por este relatório.
+Esse era o escopo pendente ao concluir a implementação original. Posteriormente,
+o responsável informou validação da sanitização no n8n; a coleta de 11 execuções
+e o [benchmark real DEV](benchmark-real-deduplicacao-dev.md) foram concluídos.
+Esses testes limitados não comprovam cobertura integral de PII, governança,
+exclusão real ou todos os cenários de engine descritos acima.

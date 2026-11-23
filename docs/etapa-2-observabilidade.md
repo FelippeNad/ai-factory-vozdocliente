@@ -2,7 +2,9 @@
 
 Atualização da entrega: o responsável informou falha sintética com alerta
 **enviado e recebido no Slack DEV**, `alert_status=sent` e erro nulo. Essa validação
-não abrange os três workflows experimentais de observabilidade do Router.
+pertence à retenção. A coleta de 11 execuções/P1 do Router e o benchmark real DEV
+foram concluídos separadamente; ver o [dashboard](evidencias/router-observabilidade-dev-real.html)
+e o [relatório antes/depois](evidencias/benchmark-dev-real.html).
 
 Esta página descreve o componente de **retenção**. A integração posterior ao
 [Router DEV observável](etapa-2-observabilidade-router.md) reutiliza o transporte

@@ -1,0 +1,728 @@
+{
+  "schema": "vozdocliente.benchmark.numeric-samples.v1",
+  "benchmark_id": "097ec2ffc37c4e4081bb54d9a0c174c0",
+  "scope": "REAL_DEV_CONTROLLED_NOT_PRODUCTION",
+  "persisted_quality": "not_evaluated",
+  "samples": [
+    {
+      "variant": "before",
+      "sequence": 1,
+      "status": "success",
+      "duration_ms": 5770,
+      "metrics": {
+        "runs_total": 1,
+        "runs_success": 1,
+        "runs_duplicate": 0,
+        "runs_failure": 0,
+        "received": 1,
+        "persisted": 1,
+        "llm_calls_attempted": 1,
+        "llm_responses": 1,
+        "classification_valid": 1,
+        "prompt_tokens": 104,
+        "completion_tokens": 19,
+        "estimated_cost_usd": 4.36e-05
+      },
+      "airtable_queries_attempted": {
+        "precheck": 0,
+        "final": 1
+      }
+    },
+    {
+      "variant": "before",
+      "sequence": 2,
+      "status": "success",
+      "duration_ms": 2786,
+      "metrics": {
+        "runs_total": 1,
+        "runs_success": 1,
+        "runs_duplicate": 0,
+        "runs_failure": 0,
+        "received": 1,
+        "persisted": 1,
+        "llm_calls_attempted": 1,
+        "llm_responses": 1,
+        "classification_valid": 1,
+        "prompt_tokens": 110,
+        "completion_tokens": 19,
+        "estimated_cost_usd": 4.48e-05
+      },
+      "airtable_queries_attempted": {
+        "precheck": 0,
+        "final": 1
+      }
+    },
+    {
+      "variant": "before",
+      "sequence": 3,
+      "status": "success",
+      "duration_ms": 2773,
+      "metrics": {
+        "runs_total": 1,
+        "runs_success": 1,
+        "runs_duplicate": 0,
+        "runs_failure": 0,
+        "received": 1,
+        "persisted": 1,
+        "llm_calls_attempted": 1,
+        "llm_responses": 1,
+        "classification_valid": 1,
+        "prompt_tokens": 109,
+        "completion_tokens": 19,
+        "estimated_cost_usd": 4.46e-05
+      },
+      "airtable_queries_attempted": {
+        "precheck": 0,
+        "final": 1
+      }
+    },
+    {
+      "variant": "before",
+      "sequence": 4,
+      "status": "success",
+      "duration_ms": 3086,
+      "metrics": {
+        "runs_total": 1,
+        "runs_success": 1,
+        "runs_duplicate": 0,
+        "runs_failure": 0,
+        "received": 1,
+        "persisted": 1,
+        "llm_calls_attempted": 1,
+        "llm_responses": 1,
+        "classification_valid": 1,
+        "prompt_tokens": 104,
+        "completion_tokens": 21,
+        "estimated_cost_usd": 4.6e-05
+      },
+      "airtable_queries_attempted": {
+        "precheck": 0,
+        "final": 1
+      }
+    },
+    {
+      "variant": "before",
+      "sequence": 5,
+      "status": "success",
+      "duration_ms": 3639,
+      "metrics": {
+        "runs_total": 1,
+        "runs_success": 1,
+        "runs_duplicate": 0,
+        "runs_failure": 0,
+        "received": 1,
+        "persisted": 1,
+        "llm_calls_attempted": 1,
+        "llm_responses": 1,
+        "classification_valid": 1,
+        "prompt_tokens": 110,
+        "completion_tokens": 20,
+        "estimated_cost_usd": 4.6e-05
+      },
+      "airtable_queries_attempted": {
+        "precheck": 0,
+        "final": 1
+      }
+    },
+    {
+      "variant": "before",
+      "sequence": 6,
+      "status": "duplicate",
+      "duration_ms": 1841,
+      "metrics": {
+        "runs_total": 1,
+        "runs_success": 0,
+        "runs_duplicate": 1,
+        "runs_failure": 0,
+        "received": 1,
+        "persisted": 0,
+        "llm_calls_attempted": 1,
+        "llm_responses": 1,
+        "classification_valid": 1,
+        "prompt_tokens": 104,
+        "completion_tokens": 19,
+        "estimated_cost_usd": 4.36e-05
+      },
+      "airtable_queries_attempted": {
+        "precheck": 0,
+        "final": 1
+      }
+    },
+    {
+      "variant": "before",
+      "sequence": 7,
+      "status": "duplicate",
+      "duration_ms": 2797,
+      "metrics": {
+        "runs_total": 1,
+        "runs_success": 0,
+        "runs_duplicate": 1,
+        "runs_failure": 0,
+        "received": 1,
+        "persisted": 0,
+        "llm_calls_attempted": 1,
+        "llm_responses": 1,
+        "classification_valid": 1,
+        "prompt_tokens": 110,
+        "completion_tokens": 19,
+        "estimated_cost_usd": 4.48e-05
+      },
+      "airtable_queries_attempted": {
+        "precheck": 0,
+        "final": 1
+      }
+    },
+    {
+      "variant": "before",
+      "sequence": 8,
+      "status": "duplicate",
+      "duration_ms": 1554,
+      "metrics": {
+        "runs_total": 1,
+        "runs_success": 0,
+        "runs_duplicate": 1,
+        "runs_failure": 0,
+        "received": 1,
+        "persisted": 0,
+        "llm_calls_attempted": 1,
+        "llm_responses": 1,
+        "classification_valid": 1,
+        "prompt_tokens": 109,
+        "completion_tokens": 19,
+        "estimated_cost_usd": 4.46e-05
+      },
+      "airtable_queries_attempted": {
+        "precheck": 0,
+        "final": 1
+      }
+    },
+    {
+      "variant": "before",
+      "sequence": 9,
+      "status": "duplicate",
+      "duration_ms": 1523,
+      "metrics": {
+        "runs_total": 1,
+        "runs_success": 0,
+        "runs_duplicate": 1,
+        "runs_failure": 0,
+        "received": 1,
+        "persisted": 0,
+        "llm_calls_attempted": 1,
+        "llm_responses": 1,
+        "classification_valid": 1,
+        "prompt_tokens": 104,
+        "completion_tokens": 21,
+        "estimated_cost_usd": 4.6e-05
+      },
+      "airtable_queries_attempted": {
+        "precheck": 0,
+        "final": 1
+      }
+    },
+    {
+      "variant": "before",
+      "sequence": 10,
+      "status": "duplicate",
+      "duration_ms": 1562,
+      "metrics": {
+        "runs_total": 1,
+        "runs_success": 0,
+        "runs_duplicate": 1,
+        "runs_failure": 0,
+        "received": 1,
+        "persisted": 0,
+        "llm_calls_attempted": 1,
+        "llm_responses": 1,
+        "classification_valid": 1,
+        "prompt_tokens": 110,
+        "completion_tokens": 20,
+        "estimated_cost_usd": 4.6e-05
+      },
+      "airtable_queries_attempted": {
+        "precheck": 0,
+        "final": 1
+      }
+    },
+    {
+      "variant": "before",
+      "sequence": 11,
+      "status": "duplicate",
+      "duration_ms": 1950,
+      "metrics": {
+        "runs_total": 1,
+        "runs_success": 0,
+        "runs_duplicate": 1,
+        "runs_failure": 0,
+        "received": 1,
+        "persisted": 0,
+        "llm_calls_attempted": 1,
+        "llm_responses": 1,
+        "classification_valid": 1,
+        "prompt_tokens": 104,
+        "completion_tokens": 19,
+        "estimated_cost_usd": 4.36e-05
+      },
+      "airtable_queries_attempted": {
+        "precheck": 0,
+        "final": 1
+      }
+    },
+    {
+      "variant": "before",
+      "sequence": 12,
+      "status": "duplicate",
+      "duration_ms": 1520,
+      "metrics": {
+        "runs_total": 1,
+        "runs_success": 0,
+        "runs_duplicate": 1,
+        "runs_failure": 0,
+        "received": 1,
+        "persisted": 0,
+        "llm_calls_attempted": 1,
+        "llm_responses": 1,
+        "classification_valid": 1,
+        "prompt_tokens": 110,
+        "completion_tokens": 19,
+        "estimated_cost_usd": 4.48e-05
+      },
+      "airtable_queries_attempted": {
+        "precheck": 0,
+        "final": 1
+      }
+    },
+    {
+      "variant": "before",
+      "sequence": 13,
+      "status": "duplicate",
+      "duration_ms": 1988,
+      "metrics": {
+        "runs_total": 1,
+        "runs_success": 0,
+        "runs_duplicate": 1,
+        "runs_failure": 0,
+        "received": 1,
+        "persisted": 0,
+        "llm_calls_attempted": 1,
+        "llm_responses": 1,
+        "classification_valid": 1,
+        "prompt_tokens": 109,
+        "completion_tokens": 19,
+        "estimated_cost_usd": 4.46e-05
+      },
+      "airtable_queries_attempted": {
+        "precheck": 0,
+        "final": 1
+      }
+    },
+    {
+      "variant": "before",
+      "sequence": 14,
+      "status": "duplicate",
+      "duration_ms": 1532,
+      "metrics": {
+        "runs_total": 1,
+        "runs_success": 0,
+        "runs_duplicate": 1,
+        "runs_failure": 0,
+        "received": 1,
+        "persisted": 0,
+        "llm_calls_attempted": 1,
+        "llm_responses": 1,
+        "classification_valid": 1,
+        "prompt_tokens": 104,
+        "completion_tokens": 21,
+        "estimated_cost_usd": 4.6e-05
+      },
+      "airtable_queries_attempted": {
+        "precheck": 0,
+        "final": 1
+      }
+    },
+    {
+      "variant": "before",
+      "sequence": 15,
+      "status": "duplicate",
+      "duration_ms": 1632,
+      "metrics": {
+        "runs_total": 1,
+        "runs_success": 0,
+        "runs_duplicate": 1,
+        "runs_failure": 0,
+        "received": 1,
+        "persisted": 0,
+        "llm_calls_attempted": 1,
+        "llm_responses": 1,
+        "classification_valid": 1,
+        "prompt_tokens": 110,
+        "completion_tokens": 20,
+        "estimated_cost_usd": 4.6e-05
+      },
+      "airtable_queries_attempted": {
+        "precheck": 0,
+        "final": 1
+      }
+    },
+    {
+      "variant": "after",
+      "sequence": 1,
+      "status": "success",
+      "duration_ms": 3096,
+      "metrics": {
+        "runs_total": 1,
+        "runs_success": 1,
+        "runs_duplicate": 0,
+        "runs_failure": 0,
+        "received": 1,
+        "persisted": 1,
+        "llm_calls_attempted": 1,
+        "llm_responses": 1,
+        "classification_valid": 1,
+        "prompt_tokens": 104,
+        "completion_tokens": 19,
+        "estimated_cost_usd": 4.36e-05
+      },
+      "airtable_queries_attempted": {
+        "precheck": 1,
+        "final": 1
+      }
+    },
+    {
+      "variant": "after",
+      "sequence": 2,
+      "status": "success",
+      "duration_ms": 3317,
+      "metrics": {
+        "runs_total": 1,
+        "runs_success": 1,
+        "runs_duplicate": 0,
+        "runs_failure": 0,
+        "received": 1,
+        "persisted": 1,
+        "llm_calls_attempted": 1,
+        "llm_responses": 1,
+        "classification_valid": 1,
+        "prompt_tokens": 110,
+        "completion_tokens": 19,
+        "estimated_cost_usd": 4.48e-05
+      },
+      "airtable_queries_attempted": {
+        "precheck": 1,
+        "final": 1
+      }
+    },
+    {
+      "variant": "after",
+      "sequence": 3,
+      "status": "success",
+      "duration_ms": 3350,
+      "metrics": {
+        "runs_total": 1,
+        "runs_success": 1,
+        "runs_duplicate": 0,
+        "runs_failure": 0,
+        "received": 1,
+        "persisted": 1,
+        "llm_calls_attempted": 1,
+        "llm_responses": 1,
+        "classification_valid": 1,
+        "prompt_tokens": 109,
+        "completion_tokens": 19,
+        "estimated_cost_usd": 4.46e-05
+      },
+      "airtable_queries_attempted": {
+        "precheck": 1,
+        "final": 1
+      }
+    },
+    {
+      "variant": "after",
+      "sequence": 4,
+      "status": "success",
+      "duration_ms": 3115,
+      "metrics": {
+        "runs_total": 1,
+        "runs_success": 1,
+        "runs_duplicate": 0,
+        "runs_failure": 0,
+        "received": 1,
+        "persisted": 1,
+        "llm_calls_attempted": 1,
+        "llm_responses": 1,
+        "classification_valid": 1,
+        "prompt_tokens": 104,
+        "completion_tokens": 21,
+        "estimated_cost_usd": 4.6e-05
+      },
+      "airtable_queries_attempted": {
+        "precheck": 1,
+        "final": 1
+      }
+    },
+    {
+      "variant": "after",
+      "sequence": 5,
+      "status": "success",
+      "duration_ms": 3437,
+      "metrics": {
+        "runs_total": 1,
+        "runs_success": 1,
+        "runs_duplicate": 0,
+        "runs_failure": 0,
+        "received": 1,
+        "persisted": 1,
+        "llm_calls_attempted": 1,
+        "llm_responses": 1,
+        "classification_valid": 1,
+        "prompt_tokens": 110,
+        "completion_tokens": 20,
+        "estimated_cost_usd": 4.6e-05
+      },
+      "airtable_queries_attempted": {
+        "precheck": 1,
+        "final": 1
+      }
+    },
+    {
+      "variant": "after",
+      "sequence": 6,
+      "status": "duplicate",
+      "duration_ms": 695,
+      "metrics": {
+        "runs_total": 1,
+        "runs_success": 0,
+        "runs_duplicate": 1,
+        "runs_failure": 0,
+        "received": 1,
+        "persisted": 0,
+        "llm_calls_attempted": 0,
+        "llm_responses": 0,
+        "classification_valid": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "estimated_cost_usd": 0
+      },
+      "airtable_queries_attempted": {
+        "precheck": 1,
+        "final": 0
+      }
+    },
+    {
+      "variant": "after",
+      "sequence": 7,
+      "status": "duplicate",
+      "duration_ms": 687,
+      "metrics": {
+        "runs_total": 1,
+        "runs_success": 0,
+        "runs_duplicate": 1,
+        "runs_failure": 0,
+        "received": 1,
+        "persisted": 0,
+        "llm_calls_attempted": 0,
+        "llm_responses": 0,
+        "classification_valid": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "estimated_cost_usd": 0
+      },
+      "airtable_queries_attempted": {
+        "precheck": 1,
+        "final": 0
+      }
+    },
+    {
+      "variant": "after",
+      "sequence": 8,
+      "status": "duplicate",
+      "duration_ms": 723,
+      "metrics": {
+        "runs_total": 1,
+        "runs_success": 0,
+        "runs_duplicate": 1,
+        "runs_failure": 0,
+        "received": 1,
+        "persisted": 0,
+        "llm_calls_attempted": 0,
+        "llm_responses": 0,
+        "classification_valid": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "estimated_cost_usd": 0
+      },
+      "airtable_queries_attempted": {
+        "precheck": 1,
+        "final": 0
+      }
+    },
+    {
+      "variant": "after",
+      "sequence": 9,
+      "status": "duplicate",
+      "duration_ms": 690,
+      "metrics": {
+        "runs_total": 1,
+        "runs_success": 0,
+        "runs_duplicate": 1,
+        "runs_failure": 0,
+        "received": 1,
+        "persisted": 0,
+        "llm_calls_attempted": 0,
+        "llm_responses": 0,
+        "classification_valid": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "estimated_cost_usd": 0
+      },
+      "airtable_queries_attempted": {
+        "precheck": 1,
+        "final": 0
+      }
+    },
+    {
+      "variant": "after",
+      "sequence": 10,
+      "status": "duplicate",
+      "duration_ms": 694,
+      "metrics": {
+        "runs_total": 1,
+        "runs_success": 0,
+        "runs_duplicate": 1,
+        "runs_failure": 0,
+        "received": 1,
+        "persisted": 0,
+        "llm_calls_attempted": 0,
+        "llm_responses": 0,
+        "classification_valid": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "estimated_cost_usd": 0
+      },
+      "airtable_queries_attempted": {
+        "precheck": 1,
+        "final": 0
+      }
+    },
+    {
+      "variant": "after",
+      "sequence": 11,
+      "status": "duplicate",
+      "duration_ms": 690,
+      "metrics": {
+        "runs_total": 1,
+        "runs_success": 0,
+        "runs_duplicate": 1,
+        "runs_failure": 0,
+        "received": 1,
+        "persisted": 0,
+        "llm_calls_attempted": 0,
+        "llm_responses": 0,
+        "classification_valid": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "estimated_cost_usd": 0
+      },
+      "airtable_queries_attempted": {
+        "precheck": 1,
+        "final": 0
+      }
+    },
+    {
+      "variant": "after",
+      "sequence": 12,
+      "status": "duplicate",
+      "duration_ms": 687,
+      "metrics": {
+        "runs_total": 1,
+        "runs_success": 0,
+        "runs_duplicate": 1,
+        "runs_failure": 0,
+        "received": 1,
+        "persisted": 0,
+        "llm_calls_attempted": 0,
+        "llm_responses": 0,
+        "classification_valid": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "estimated_cost_usd": 0
+      },
+      "airtable_queries_attempted": {
+        "precheck": 1,
+        "final": 0
+      }
+    },
+    {
+      "variant": "after",
+      "sequence": 13,
+      "status": "duplicate",
+      "duration_ms": 684,
+      "metrics": {
+        "runs_total": 1,
+        "runs_success": 0,
+        "runs_duplicate": 1,
+        "runs_failure": 0,
+        "received": 1,
+        "persisted": 0,
+        "llm_calls_attempted": 0,
+        "llm_responses": 0,
+        "classification_valid": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "estimated_cost_usd": 0
+      },
+      "airtable_queries_attempted": {
+        "precheck": 1,
+        "final": 0
+      }
+    },
+    {
+      "variant": "after",
+      "sequence": 14,
+      "status": "duplicate",
+      "duration_ms": 688,
+      "metrics": {
+        "runs_total": 1,
+        "runs_success": 0,
+        "runs_duplicate": 1,
+        "runs_failure": 0,
+        "received": 1,
+        "persisted": 0,
+        "llm_calls_attempted": 0,
+        "llm_responses": 0,
+        "classification_valid": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "estimated_cost_usd": 0
+      },
+      "airtable_queries_attempted": {
+        "precheck": 1,
+        "final": 0
+      }
+    },
+    {
+      "variant": "after",
+      "sequence": 15,
+      "status": "duplicate",
+      "duration_ms": 696,
+      "metrics": {
+        "runs_total": 1,
+        "runs_success": 0,
+        "runs_duplicate": 1,
+        "runs_failure": 0,
+        "received": 1,
+        "persisted": 0,
+        "llm_calls_attempted": 0,
+        "llm_responses": 0,
+        "classification_valid": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "estimated_cost_usd": 0
+      },
+      "airtable_queries_attempted": {
+        "precheck": 1,
+        "final": 0
+      }
+    }
+  ]
+}

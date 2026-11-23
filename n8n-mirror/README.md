@@ -16,8 +16,13 @@ Para a entrega estável, usar:
 
 Os três arquivos `vozdocliente-router-v4-observavel-dev.json`,
 `vozdocliente-observabilidade-router-dev.json` e `vozdocliente-erros-router-dev.json`
-são **experimentais**, testados offline e pendentes de integração no engine.
-Não são a demonstração principal. Ver [observabilidade experimental](../docs/etapa-2-observabilidade-router.md).
+possuem testes offline e coleta real controlada no n8n DEV: 11 execuções e P1
+de falha terminal validado no Slack DEV, conforme informado pelo responsável.
+Os exports permanecem inativos e sem credenciais. Ver
+[thresholds, resultados e limites de validação](../docs/etapa-2-observabilidade-router.md#thresholds-iniciais-dev-e-resultados-observados).
+P2 é diagnóstico local; P3 é revisão manual do dashboard. Não há notificações
+automáticas P2/P3, nem comprovação de desempenho em produção ou de todos os
+cenários nativos de Error Trigger.
 
 V0/v1/v2 são protótipos históricos. V3 é referência antiga de produção com
 `active=true`, e v4 original é a baseline de PII inativa. Essas versões conservam
@@ -79,13 +84,19 @@ POST/PATCH JSON de GET/DELETE. A DEMO usa Code no lugar desses transportes.
 O alerta de falha da retenção usa `Slack DEV falha`, opt-in via
 `RETENTION_ALERTS_ENABLED`, `RETENTION_ENV=DEV` e `RETENTION_SLACK_DEV_CHANNEL_ID`.
 O responsável informou recebimento real de alerta sintético, `alert_status=sent`
-e erro nulo. Isso não valida o Slack integrado dos workflows experimentais.
+e erro nulo. Essa evidência pertence à retenção; o P1 do Router foi validado
+separadamente na coleta controlada de 11 execuções.
 
 ## Documentação e segurança
 
 - [Estado da entrega e catálogo](../README.md).
 - [Sanitização PII](../docs/etapa-2-sanitizacao-pii.md).
 - [Otimização, benchmark e limites](../docs/etapa-2-otimizacao-v4.md).
+- [Benchmark real concluído](../docs/benchmark-real-deduplicacao-dev.md): 15 envios
+  por versão, LLM 15 → 5, custo estimado −66,67%, latência média −35,34% e
+  consultas Airtable 15 → 20. Sem avaliação de acurácia neste lote.
+- [Dashboard real](../docs/evidencias/router-observabilidade-dev-real.html) e
+  [relatório antes/depois](../docs/evidencias/benchmark-dev-real.html), sem logs brutos.
 - [Retenção e auditoria](../docs/etapa-2-retencao-exclusao.md).
 - [Observabilidade da retenção](../docs/etapa-2-observabilidade.md).
 - [Auditoria de publicação](../docs/entrega-etapa-2.md).

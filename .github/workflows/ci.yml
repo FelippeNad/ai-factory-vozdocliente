@@ -66,3 +66,9 @@ jobs:
 
       - name: Test Router observability and safe failures (offline)
         run: node tests/test_router_observability.cjs
+
+      - name: Check isolated DEV benchmark copies (offline)
+        run: python scripts/build_router_benchmark.py --check
+
+      - name: Test real benchmark preparation with mock transports (offline)
+        run: node tests/test_router_real_benchmark.cjs

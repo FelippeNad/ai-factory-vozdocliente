@@ -14,7 +14,8 @@ const OBS_ENV = { ...ENV, ROUTER_OBSERVER_WORKFLOW_ID: 'observer_synthetic', ROU
   ROUTER_ALERTS_ENABLED: 'true' };
 const input = () => ({ ...makeLoad({ unique: 1, passes: 1 })[0], source: 'formulario' });
 
-function simulator({ env = OBS_ENV, fail = {}, malformed = {}, slackResponse, DateType = Date,
+function simulator({ env = OBS_ENV, fail = {}, malformed = {}, slackResponse, DateType = Date, workflow = router,
+  semantics: classificationCases = semantics,
   executionMode = 'offline_simulation', unexpected = {} } = {}) {
   const logs = [], notifications = [], outputs = {}, records = new Map(), prompts = [];
   const counts = { llm: 0, lookup: 0, create: 0, business_slack: 0, alerts: 0, subworkflows: 0, real_external_calls: 0 };
@@ -75,7 +76,7 @@ function simulator({ env = OBS_ENV, fail = {}, malformed = {}, slackResponse, Da
             value = { statusCode: 200, body: { records: record ? [{ id: record.id, fields: { review_id: match[1] } }] : [] } };
           } else if (name === 'LLM DEV') {
             const request = body(node.parameters); prompts.push(request.messages[1].content);
-            const sample = semantics.find(s => s.sanitized === request.messages[1].content);
+            const sample = classificationCases.find(s => s.sanitized === request.messages[1].content);
             if (!sample) throw Error('Fixture sanitizada ausente.');
             value = { choices: [{ message: { content: JSON.stringify(sample.expected) } }], usage: { prompt_tokens: 100, completion_tokens: 20 } };
           } else if (name === 'Airtable DEV') {
@@ -102,7 +103,7 @@ function simulator({ env = OBS_ENV, fail = {}, malformed = {}, slackResponse, Da
     }
     throw Error('Limite do harness excedido.');
   }
-  return { run: (payload = input(), id = 600001) => execute(router, 'Webhook Review', { body: payload }, id),
+  return { run: (payload = input(), id = 600001) => execute(workflow, 'Webhook Review', { body: payload }, id),
     error: (payload, id = 700001) => execute(errorWorkflow, 'Erro Router DEV', payload, id),
     observe: (report, id = 800001) => execute(observer, 'Receber evento Router DEV', { report }, id),
     logs, counts, outputs, notifications, records, prompts };

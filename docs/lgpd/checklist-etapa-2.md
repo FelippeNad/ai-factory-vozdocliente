@@ -1,6 +1,8 @@
 # Checklist de segurança e LGPD — Etapa 2
 
-Revisão de preparação: **03/11/2026**, HEAD local `27652b0` mais alterações ainda sem commit.
+Revisão final documental: **23/11/2026**, com evidências DEV existentes e sem novas
+chamadas externas. A auditoria histórica de 03/11/2026 permanece na documentação
+de entrega; alterações locais continuam sem commit.
 Esta matriz cobre os requisitos informados na conversa e no briefing. A rubrica
 integral da PUCPR não está anexada ao repositório; a atribuição do nível **Autônomo**
 cabe ao professor. Não é certificação de conformidade nem autorização de produção.
@@ -27,7 +29,7 @@ Uma validação offline não comprova aplicação no ambiente publicado.
 | Retenção periódica configurável | Implementado na retenção v1; Schedule, 30 dias demonstrativos, DRY_RUN e limites | Aprovar prazo/finalidade; permanece DEV e inativo; não houve DELETE real | Controlador + operação |
 | Paginação, datas e bloqueios | Testes offline; usuário informou `retention-6` DEV: 4 analisados, 2 elegíveis, 2 páginas, 0 exclusões/falhas | Revalidar importação com observabilidade; preservar reviews e DRY_RUN | Operação |
 | Auditoria de quantidade e falhas | Usuário informou persistência/finalização em `retention-6`; sem texto/IDs individuais na auditoria | Definir acesso, prazo e descarte próprio; nova importação ainda precisa de regressão DEV | Operação + segurança |
-| Observabilidade DEV | [Retenção](../etapa-2-observabilidade.md) e [Router integrado](../etapa-2-observabilidade-router.md): eventos mínimos, métricas, alerta opt-in e relatório local; testes/simulação sem rede. Usuário informou validação anterior do Router otimizado e Slack DEV, sem validar esta integração nova | Validar subworkflows, saídas de erro no engine, Error Trigger automático, Console/stdout, entrega e ausência de alerta duplicado. Crash/watchdog, coleta durável, descarte por idade e acurácia humana pendentes | Operação + segurança |
+| Observabilidade DEV | [Router integrado](../etapa-2-observabilidade-router.md): coleta real de 11 execuções, P1 Slack DEV validado e [dashboard agregado](../evidencias/router-observabilidade-dev-real.html). Qualidade manual separada: conjunta 80% em cinco exemplos. [Benchmark real](../benchmark-real-deduplicacao-dev.md): 15 envios por versão, LLM/custo −66,67%, sem avaliação semântica | Carga representativa, todos os cenários de Error Trigger, crash/watchdog, coleta durável e descarte por idade não comprovados. P2 diagnóstico local e P3 revisão manual, sem notificações automáticas | Operação + segurança |
 | Retenção interna n8n / logs ≤90 dias do briefing | Configuração proposta/validada sintaticamente no Compose dedicado: 7 dias/1000 execuções; export v4 sem salvar payloads | Pruning em execução, exceções, PostgreSQL e logs/backups Railway não comprovados; não aplicar automaticamente à produção | Infraestrutura |
 | Recuperação / legal hold | Procedimento documentado; corridas e desfechos incertos reconhecidos | Testar restauração em isolamento; tratar casos abertos/preservação antes de habilitar exclusão | Operação + controlador |
 | Gestão corporativa de credenciais | Procedimento e inventário documental implementados | Comprovar donos corporativos, escopos e segregação; nomes no JSON não provam titularidade | Administradores + segurança |
@@ -35,7 +37,7 @@ Uma validação offline não comprova aplicação no ambiente publicado.
 | Chave n8n / DEK / compatibilidade | Distinção documentada; modelo de estado simulado | Verificar suporte nas versões, backup/restauração e migração; sem ensaio criptográfico real | Operação n8n |
 | Exposição em Git e incidentes | Procedimento de contenção, revogação e coordenação documentado | Gitleaks local e revisão visual nesta preparação. Originais de capturas com identificação permanecem no histórico público; ocultação no workspace não os remove. Tratar publicação/histórico somente com autorização específica; ver auditoria da entrega | Segurança |
 | Controle de acesso / autenticação | Pendente de verificação de instância; Compose limita porta local | Confirmar MFA quando disponível, RBAC, acesso de editores, webhook e segregação por cliente; revisar `$env` | Segurança + infraestrutura |
-| Evidências verificáveis | Relatório simulado com cenários e hashes; testes disponíveis; [roteiro](roteiro-evidencias.md) | Registrar apresentação e aprovações humanas sem secrets; não transformar mock em prova de fornecedor | Autor da entrega + revisor |
+| Evidências verificáveis | [Manifesto público](../evidencias/etapa-2-evidencias-manifesto.json), agregados e amostras numéricas do benchmark real, dashboard separado e relatórios simulados identificados; [roteiro](roteiro-evidencias.md) | Registrar apresentação e aprovações humanas sem secrets; hashes demonstram consistência, não autenticação independente; preservar coletas brutas fora do Git | Autor da entrega + revisor |
 
 ## Registro de revisão e aceite
 
@@ -45,7 +47,7 @@ Uma validação offline não comprova aplicação no ambiente publicado.
 | Aprovação de base legal / transferências | Pendente de revisão jurídica e contratual |
 | Acesso a produção / rotação real / exclusão real | Fora do escopo autorizado desta entrega |
 | Resultado do exercício simulado | 38 cenários aprovados; [relatório](../security/evidencias/rotacao-simulada.json) verificável pelo script |
-| Resultado de integração com contas reais | Responsável informou sanitização, Router otimizado (nova/duplicata/falha segura), retenção DRY_RUN com auditoria e alerta sintético recebido no Slack DEV. Três workflows observáveis posteriores e dashboard real continuam pendentes; nenhuma API do produto executada nesta auditoria |
+| Resultado de integração com contas reais | Sanitização, Router otimizado, retenção DRY_RUN e Slack DEV informados pelo responsável; coleta Router de 11 execuções e benchmark real ID `097ec2ffc37c4e4081bb54d9a0c174c0` agora consolidados offline. Validade estrutural 100%; benchmark sem avaliação semântica. Nenhuma API do produto executada nesta consolidação documental |
 
 O [roteiro](roteiro-evidencias.md) separa o que já existe do que ainda precisa ser
 capturado. Caso testes/artefatos mudem, atualizar a evidência correspondente sem

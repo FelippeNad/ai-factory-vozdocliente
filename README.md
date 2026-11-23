@@ -1,52 +1,142 @@
 # VozDoCliente — AI Review Router
 
 Projeto da disciplina AI Factory da PUCPR: triagem de avaliações por sentimento e
-tema, com n8n, LLM, Airtable e Slack. A Etapa 2 adiciona controles de segurança e
-privacidade. A entrega da Etapa 2 está publicada na branch `etapa-2` do GitHub. A implementação foi preparada e validada sem novo deploy de produção, exclusão real de dados ou rotação de credenciais.
+tema, com n8n, LLM, Airtable e Slack. **Etapa 2 consolidada localmente em
+23/11/2026**, com segurança/LGPD, retenção, observabilidade e benchmark real DEV.
+Esta consolidação documental não executou novas chamadas externas, não modificou
+workflows ou produção e não realizou commit/push. Os novos artefatos ainda aguardam
+revisão de publicação; o histórico da Etapa 1 permanece identificado abaixo.
 
-## Estado da entrega — 02/11/2026
+## Resultados finais e evidências
 
-### VALIDADO NO N8N
+- [Dashboard de observabilidade real DEV](docs/evidencias/router-observabilidade-dev-real.html):
+  coleta separada de **11 execuções** (7 sucessos, 1 duplicata, 3 falhas intencionais),
+  com avaliação manual limitada de cinco exemplos e **80% de acurácia conjunta**.
+- [Relatório do benchmark real antes/depois](docs/evidencias/benchmark-dev-real.html),
+  [JSON agregado](docs/evidencias/benchmark-dev-real.json),
+  [amostras numéricas sanitizadas](docs/evidencias/benchmark-dev-amostras.json) e
+  [manifesto SHA-256](docs/evidencias/etapa-2-evidencias-manifesto.json).
+- Benchmark **`097ec2ffc37c4e4081bb54d9a0c174c0`**: cinco avaliações sintéticas distintas,
+  três passagens por versão, 15 requisições sequenciais por versão, IDs inéditos
+  em namespaces separados, mesmo modelo/prompt/configuração. Baseline instrumentado
+  classifica antes de deduplicar; otimizado mantém precheck e consulta final.
+  [Método, reprodução e limites](docs/benchmark-real-deduplicacao-dev.md).
 
-Validações locais informadas pelo responsável do projeto, com dados sintéticos e
-recursos DEV. Não foram repetidas contra fornecedores nesta auditoria:
+| Métrica real DEV | Antes | Depois |
+| --- | ---: | ---: |
+| Requisições / terminais reconciliados | 15 / 15 | 15 / 15 |
+| Sucessos | 5 | 5 |
+| Duplicatas | 10 | 10 |
+| Falhas | 0 | 0 |
+| Chamadas LLM (tentativas com resposta) | 15 | 5 |
+| Consultas Airtable (GETs) | 15 | 20 |
+| Registros persistidos confirmados | 5 | 5 |
+| Tokens de entrada | 1611 | 537 |
+| Tokens de saída | 294 | 98 |
+| Custo estimado LLM (USD) | 0,000675 | 0,000225 |
+| Latência média (ms) | 2396,87 | 1549,93 |
+| p50 (ms) | 1950 | 695 |
+| p95 (ms) | 5770 | 3437 |
+| p99 (ms) | 5770 | 3437 |
+| Validade estrutural | 100% (15/15) | 100% (5/5) |
+| Acurácia das classificações persistidas | Não avaliada | Não avaliada |
 
-- Sanitização PII antes do LLM, sem fallback para o texto original.
-- Deduplicação e classificação do **Router v4 otimizado DEV**: avaliação nova e
-  duplicata interrompida antes do LLM.
-- Bloqueio seguro quando a consulta de precheck falha, sem LLM nem persistência.
-- Retenção **DRY_RUN** com auditoria no Airtable DEV: `retention-6`, 4 analisados,
-  2 elegíveis, 0 excluídos, 0 falhas, 2 páginas, `audit_persisted=true` e
-  `audit_finalized=true`.
-- Alerta de falha sintética **enviado e recebido no Slack DEV**:
-  `alert_status=sent`, `alert_error_code=null`, com logs e métricas.
-  Essa validação pertence à observabilidade da retenção, não ao Router experimental.
+Houve **redução de 66,67% nas chamadas LLM e no custo estimado**, e de **35,34%
+na latência média** deste lote. Foram **cinco consultas Airtable adicionais
+(+33,33%)**; incluindo cinco criações por versão, operações Airtable passaram
+de 20 para 25 (+25%). O custo médio por classificação com custo conhecido ficou
+em **US$ 0,000045 nas duas versões**: a economia veio de evitar chamadas, não
+de baratear cada classificação. Todos os custos e durações deste par são conhecidos.
 
-### VALIDADO OFFLINE
+O precheck acrescenta consulta/latência ao caminho dos casos novos e dependência
+do Airtable. A consulta final foi preservada, mas leitura/criação não são atômicas.
+Economia LLM não comprova economia total: consultas Airtable, Slack e infraestrutura
+não foram monetizados. A latência é `report.duration_ms` até o evento terminal,
+**não o ACK HTTP**. Os percentis incluem duplicatas; N=15 faz p95/p99 selecionarem
+o máximo. Amostra sintética, sequencial, com 2/3 de duplicatas, ordem antes/depois
+fixa e variação/cache possíveis: **não representa produção**.
 
-- Benchmark com a mesma carga sintética de **120 eventos**: **120 → 30 chamadas
-  LLM simuladas** (−75%), mesmos 30 registros e textos de alertas. Consultas
-  Airtable simuladas: 120 → 150. Não são chamadas reais nem economia faturada.
-- O harness ficou mais lento: média 458,654 → 555,445 ms/lote. Não foi demonstrado
-  ganho de latência de API ou de produção. Ver [metodologia e amostras](docs/etapa-2-otimizacao-v4.md).
-- Testes automatizados de sanitização, classificação, deduplicação, retenção,
-  diagnóstico de schema, observabilidade, exports e barreiras de segurança.
-- Exercício de rotação com 38 cenários de estados fictícios, sem troca de tokens
-  ou teste criptográfico real do n8n.
+Não foram coletados snapshots de classificação persistida neste benchmark:
+**não há comprovação de equivalência semântica**. Os 80% de acurácia conjunta
+(sentimento 80%, tema 100%, cinco rótulos) pertencem à avaliação separada da
+coleta de 11 execuções. Validade estrutural de 100% não substitui acurácia.
 
-### EXPERIMENTAL / PENDENTE
+## Observabilidade: cinco famílias de métricas
 
-- Os **três workflows de observabilidade do Router** foram testados offline;
-  importação, subworkflows, Error Trigger e Slack integrado no engine continuam
-  pendentes. Não são o caminho recomendado para a demonstração estável.
-- Dashboard com dados reais, métricas de latência e custos reais, corpus rotulado
-  e acurácia de classificação ainda não foram produzidos.
-- O [relatório visual de 23 eventos](docs/evidencias/router-observabilidade-simulacao.html)
-  é **SIMULAÇÃO OFFLINE**. p50=5 ms, p95=31 ms e p99=31 ms descrevem somente o
-  harness com mocks, N=3 execuções. **Não são métricas de produção ou do n8n.**
-- O serviço Railway possui disponibilidade temporária, condicionada ao período gratuito restante. Os smoke tests de produção apresentados são históricos e não comprovam disponibilidade contínua. A entrega da Etapa 2 foi validada localmente, sem necessidade de novo deploy de produção.
-- A branch `etapa-2` foi publicada em 02/11/2026, sem merge na `main` e sem comando de deploy. A captura original do Slack presente no histórico público do Git permanece pendente de remediação. A versão atual das capturas foi anonimizada.
+| Família | Evidência e interpretação |
+| --- | --- |
+| Volume | Benchmark: 15 envios/15 terminais em cada versão, reconciliação de 100%. Coleta operacional separada: 11 terminais; não inferir seu total enviado apenas pelos logs. |
+| Latência | Benchmark: média/p50/p95/p99 na tabela; coleta de 11 runs: p50=3742 ms, p95/p99=6730 ms, 10 durações conhecidas. Sem misturar denominadores. |
+| Custo | Benchmark com cobertura completa: US$ 0,000675 → 0,000225. Na coleta de 11 runs, média US$ 0,0000434 nas cinco classificações com custo conhecido; outras duas têm custo desconhecido, nunca zero. |
+| Erro | Benchmark: 0/15 por versão, apenas neste lote. Coleta de falhas controladas: 3/11=27,27%, incluindo três falhas intencionais; não é taxa de operação normal. |
+| Qualidade | Validade estrutural independente: 100% em ambos os lotes. Acurácia conjunta separada: 80% (4/5), abaixo da meta de 90%; sem acurácia medida no benchmark. |
 
+### Thresholds iniciais DEV
+
+| Indicador | Limite |
+| --- | --- |
+| Latência p50 / p95 / p99 | Até 8 s / 12 s / 15 s |
+| Custo médio por classificação com custo conhecido | Até US$ 0,0001 |
+| Taxa de erro em operação normal | Até 5%; não aferida como indicador representativo pelos lotes controlados |
+| Volume reconciliado em lote controlado | 100% dos envios vinculados a terminais |
+| Acurácia conjunta de sentimento e tema | Pelo menos 90%; não atendida nos cinco exemplos separados (80%) |
+| Validade estrutural | 100% |
+
+Justificativas individuais, cobertura e denominadores estão no
+[registro dos thresholds](docs/etapa-2-observabilidade-router.md#thresholds-iniciais-dev-e-resultados-observados).
+São limites iniciais DEV, sem SLA/SLO de produção. O benchmark atende aos limites
+numéricos de latência/custo, volume e validade neste lote; não avalia a meta semântica.
+
+| Prioridade | Público | Canal / estado | Ação esperada |
+| --- | --- | --- | --- |
+| P1 — falha terminal | Responsável técnico | Slack DEV, automático opt-in implementado e validado | Correlacionar run/etapa/código, distinguir falha intencional e investigar antes de reprocessar. |
+| P2 — falha de entrega da observabilidade | Responsável técnico | Diagnóstico local; sem notificação automática | Conferir pareamento, permissões e entrega; corrigir e revalidar sem repetir negócio automaticamente. |
+| P3 — desvio de threshold | Responsável técnico | Revisão manual do dashboard; sem notificação automática | Conferir cobertura/denominador, registrar ação e repetir avaliação controlada se necessário. |
+
+## Segurança, LGPD, rotação e retenção
+
+- **Sanitização:** somente `review_text_sanitized` chega ao LLM, sem fallback.
+  JSON/enums inválidos e falhas de consulta bloqueiam o fluxo. Regex reduz exposição,
+  mas não cobre toda PII ou anonimiza nomes/contexto. O Airtable ainda conserva
+  o original para tratativa; Slack minimiza o conteúdo.
+- **Isolamento:** `CLASSIFIER_ENV=DEV`, destinos DEV explícitos, sem fallback PROD;
+  exports de entrega inativos, sem credenciais/pinData. Configurações de não salvar
+  payloads foram restauradas e verificadas nas duas cópias publicadas antes do par.
+  Logs globais não foram habilitados para coletar o benchmark.
+- **Rotação:** procedimento e **38 cenários simulados** verificáveis; nenhuma
+  rotação/revogação real ou migração criptográfica foi demonstrada. Custódia,
+  escopos e titularidade corporativa continuam sujeitos à revisão.
+- **Retenção/exclusão:** `retention-6` em DRY_RUN: 4 analisados, 2 elegíveis,
+  0 excluídos/falhas, 2 páginas e auditoria persistida/finalizada. Agenda/30 dias
+  são demonstrativos; DELETE real não foi executado. Pruning proposto de 7 dias/
+  1000 execuções e descarte de logs por idade exigem validação própria; rotação
+  Docker por tamanho não comprova o máximo de 90 dias do briefing.
+- **Governança:** mapa de dados, hipóteses de base legal, transferências, direitos,
+  acessos e recuperação estão documentados; contratos, prazos e aprovações humanas
+  permanecem pendentes. Não há declaração de conformidade integral com a LGPD.
+
+## Histórico offline e Etapa 1
+
+O [benchmark offline de 120 eventos](docs/etapa-2-otimizacao-v4.md) teve 120 → 30
+chamadas LLM simuladas (−75%) e média do harness 458,654 → 555,445 ms/lote, mais
+lenta. São outras carga e metodologia; não combinar seus números com o par real
+de 15 envios. A [simulação de 23 eventos](docs/evidencias/router-observabilidade-simulacao.html)
+tem três runs com mocks, p50=5 ms e p95/p99=31 ms, sem chamadas externas.
+
+ADRs, C4, smoke tests, deploy/rollback e capturas da Etapa 1 são históricos e
+permanecem preservados nos links de documentação ao final. Não comprovam estado
+atual do Railway nem autorizam reativação/novo deploy. A publicação histórica da
+branch `etapa-2` em 02/11/2026 não inclui automaticamente estes novos artefatos.
+Remediação das capturas antigas no histórico público, revisão de autodeploy e
+aprovações de publicação continuam pendentes.
+
+Referências da Etapa 1: [stack](docs/adr/ADR-001-stack.md),
+[deploy e ambientes](docs/adr/ADR-002-deploy-e-ambientes.md),
+[C4 contexto](docs/architecture/c4-context.md),
+[C4 containers](docs/architecture/c4-container.md),
+[smoke tests](docs/smoke-tests.md), [rollback](docs/rollback.md),
+[postmortem](docs/postmortem-n8n-encryption-key.md) e
+[capturas históricas](docs/evidencias/evidencias-projeto.md).
 
 ## Workflows recomendados e referências
 
@@ -54,12 +144,12 @@ Todos os caminhos abaixo estão em `n8n-mirror/workflows/`.
 
 | Arquivo | Uso nesta entrega | Estado do export |
 | --- | --- | --- |
-| `vozdocliente-router-v4-otimizado-dev.json` | **Router DEV recomendado**, validado localmente pelo responsável | Inativo, sem referências de credenciais |
+| `vozdocliente-router-v4-otimizado-dev.json` | Router DEV otimizado sem instrumentação integrada, validado localmente | Inativo, sem referências de credenciais |
 | `vozdocliente-retencao-v1.json` | **Retenção DEV recomendada**, apenas DRY_RUN na demonstração | Inativo, sem referências de credenciais |
 | `vozdocliente-retencao-demo.json` | **Demonstração sem APIs**: transportes Code e alerta simulado | Inativo, sem credenciais |
-| `vozdocliente-router-v4-observavel-dev.json` | Router instrumentado **experimental**, offline | Inativo, sem credenciais |
-| `vozdocliente-observabilidade-router-dev.json` | Subworkflow de alerta **experimental**, offline | Inativo, sem credenciais |
-| `vozdocliente-erros-router-dev.json` | Error Workflow **experimental**, offline | Inativo, sem credenciais |
+| `vozdocliente-router-v4-observavel-dev.json` | **Router atual observável DEV**; coleta real e base da cópia otimizada do benchmark | Inativo, sem credenciais |
+| `vozdocliente-observabilidade-router-dev.json` | Subworkflow de alerta P1 validado no Slack DEV | Inativo, sem credenciais |
+| `vozdocliente-erros-router-dev.json` | Error Workflow DEV; cenários nativos exigem evidência específica conforme roteiro | Inativo, sem credenciais |
 | `vozdocliente-router-v4.json` | Baseline de PII preservada; não usar como configuração DEV pronta | Inativo; referências antigas de credenciais, sem valores |
 | `vozdocliente-router-v3.json` | Referência histórica de produção; **não importar/ativar** para demonstração | `active=true` histórico, preservado; referências sem valores |
 | `vozdocliente-router-v0.json`, `v1.json`, `v2.json` | Protótipos históricos; não recomendados | Inativos; referências antigas sem valores |
@@ -133,21 +223,40 @@ python -m unittest discover -s tests -v
 python scripts/build_retention_workflow.py --check
 python scripts/build_router_optimized_workflow.py --check
 python scripts/build_router_observability.py --check
+python scripts/build_router_benchmark.py --check
+python scripts/export_etapa2_evidence.py --check
+python scripts/validate_doc_links.py
 node tests/test_pii_sanitization.cjs
 node tests/test_retention.cjs
 node tests/test_retention_schema_diagnostic.cjs
 node tests/test_observability.cjs
 node tests/test_router_optimization.cjs
 node tests/test_router_observability.cjs
+node tests/test_router_real_benchmark.cjs
 python scripts/simular_rotacao_credenciais.py --verify docs/security/evidencias/rotacao-simulada.json
 git diff --check
 ```
 
 O benchmark pode ser repetido separadamente, sem outras suítes concorrentes:
 `node scripts/benchmark_router_optimization.cjs`. Sem `--write`, não sobrescreve
-as amostras entregues. Logs e relatórios de simulação não comprovam latência real,
+as amostras offline entregues. A reprodução do benchmark real exige um plano novo
+e autorização para chamadas DEV; não executar novamente apenas para gerar documentação.
+Com a coleta local existente, `python scripts/export_etapa2_evidence.py` regenera
+os seis artefatos públicos sem rede; `--check` confere o checkout sem logs locais.
+Logs e relatórios de simulação não comprovam latência real,
 recebimento Slack ou qualidade humana. A [auditoria da entrega](docs/entrega-etapa-2.md)
 registra resultados, arquivos candidatos e bloqueios de publicação.
+
+## Troubleshooting DEV
+
+| Sintoma | Diagnóstico / ação |
+| --- | --- |
+| `Parametros/protecoes da copia DEV alterados` | Conferir tipo/versão e valores reais. O comparador recompõe somente defaults comprovados no n8n 2.28.7, em memória; não ignora código/expressões ou mudanças de segurança. |
+| `Persistencia de payloads/configuracao do workflow alterada` | Os quatro campos de retenção precisam estar explícitos: erro/sucesso=`none`, manual/progresso=`false`. Corrigir nas cópias, salvar e republicar; nunca contornar a verificação. |
+| Plano contém `started.json` | Plano de uso único já reservado. Não remover o marcador nem completar/repetir o lote; criar novo plano/namespace. `local-02` já foi concluído. |
+| Custo `null` / qualidade não medida | Conferir cobertura de usage/preços. Não tratar desconhecido como zero. Zero snapshots no benchmark significa acurácia não avaliada, não equivalência semântica. |
+| ACK HTTP rápido ou timeout | Usar pacote terminal validado e duração instrumentada. Não reenviar automaticamente: pode ter ocorrido persistência antes da perda de resposta. |
+| Credencial/DEV inválido ou precheck falha | Corrigir destino/configuração DEV; preservar sanitização, consulta final e interrupção segura, sem fallback PROD. |
 
 ## CI e segurança antes de publicar
 
@@ -164,19 +273,22 @@ autodeploy, webhooks, apps e deploy hooks antes de autorizar publicação. Não 
 commit, push, merge, force push, alteração externa ou deploy nesta preparação.
 
 `.env` reais, ferramenta Gitleaks baixada, relatórios brutos de scanner e coletas
-`router-local*` ficam ignorados. Uma captura local de retenção com preview de IDs
+`router-local*`, `router-benchmark-local*` e exports reimportados com referências
+de credenciais ficam ignorados. Somente agregados/amostras numéricas permitidas
+e manifestos sanitizados do benchmark são candidatos à publicação. Uma captura local de retenção com preview de IDs
 foi excluída da lista de publicação. Gitleaks verifica segredos, não garante
 anonimização de imagens ou ausência de todos os dados pessoais no histórico.
 
 ## Documentação
 
 - [Índice e classificação dos documentos](docs/README.md).
+- [Benchmark real DEV e reprodução](docs/benchmark-real-deduplicacao-dev.md).
 - [Sanitização PII](docs/etapa-2-sanitizacao-pii.md),
   [schema Airtable](docs/airtable-schema.md) e
   [diagnóstico de schema](docs/diagnostico-schema-retencao.md).
 - [Retenção e exclusão](docs/etapa-2-retencao-exclusao.md),
   [observabilidade de retenção](docs/etapa-2-observabilidade.md) e
-  [observabilidade Router experimental](docs/etapa-2-observabilidade-router.md).
+  [observabilidade Router DEV e thresholds](docs/etapa-2-observabilidade-router.md).
 - [Mapa LGPD](docs/lgpd/mapa-dados-pessoais.md),
   [transferência internacional](docs/lgpd/transferencia-internacional.md),
   [rotação de credenciais](docs/security/rotacao-credenciais.md),

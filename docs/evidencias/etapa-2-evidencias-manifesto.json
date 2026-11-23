@@ -1,0 +1,22 @@
+{
+  "schema": "vozdocliente.etapa2.public-evidence.v1",
+  "benchmark_id": "097ec2ffc37c4e4081bb54d9a0c174c0",
+  "source_sha256": {
+    "plan.json": "a181b20a7be54f77e2bcd6f03f5f6435226fa66a4d7a41b227d34903b2f70a7b",
+    "records.ndjson": "4debc399b8b217a5cc350a27aacaf3168fb2c85e6bb17ae9ad617e77e9b345ba",
+    "dispatch.ndjson": "9c79e60c3a7f2ce090cbce2e3fbbc2c15ded9167b94f5612261b3dc521b81768",
+    "report.json": "69ee45498e036b10c7e42776c9f7f6614a2d7cad5ccd1f14bdcf2bb436536bb8"
+  },
+  "observability_events_sha256": "9f71246b39ca455ae4106a3a496d3bc3140dad40d974f3a64ef64e0eb3e95439",
+  "quality_labels_sha256": "6194085ab8a50e1eb7257eef1332f9a315bb499045269a2656892dda743d1406",
+  "exporter_sha256": "a18ca0250f5ffbf1238f9496f375a702b9f77a36bb989bf669f2406ef3f3d903",
+  "artifacts_sha256": {
+    "benchmark-dev-real.json": "69ee45498e036b10c7e42776c9f7f6614a2d7cad5ccd1f14bdcf2bb436536bb8",
+    "benchmark-dev-real.html": "16fd38078299d67c8fb0a7a052ba3ac55841a0a8ff31f049d57218ff7be2c4b6",
+    "benchmark-dev-amostras.json": "fa87eadc8b993612505052c3770d59c5087127d0d3c7c3b4700c8d892909a452",
+    "router-observabilidade-dev-real.json": "185bdba18c42502d269ee07343f81f5e8c12d911e19201d5927bad6a45e93255",
+    "router-observabilidade-dev-real.html": "80819528cec05e69911b66b1a6c78470648365b72a762bb9bae010fb118d360f"
+  },
+  "privacy": "Somente agregados e amostras numericas permitidas; sem logs brutos, run IDs, destinos ou credenciais.",
+  "interpretation": "Hashes comprovam consistencia, nao autenticidade independente. Benchmark sem avaliacao semantica; qualidade 80% em amostra separada."
+}

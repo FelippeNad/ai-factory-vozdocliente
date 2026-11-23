@@ -1,0 +1,7 @@
+[
+  {"case_id": 1, "text": "A entrega chegou antes do prazo. Excelente!", "rating": 5, "sentiment": "positivo", "theme": "entrega"},
+  {"case_id": 2, "text": "O produto veio com defeito e nao funciona. Estou insatisfeito.", "rating": 1, "sentiment": "negativo", "theme": "produto"},
+  {"case_id": 3, "text": "O atendimento resolveu minha solicitacao com rapidez. Otimo servico!", "rating": 5, "sentiment": "positivo", "theme": "atendimento"},
+  {"case_id": 4, "text": "Gostaria de saber o preco deste item.", "rating": 3, "sentiment": "neutro", "theme": "preco"},
+  {"case_id": 5, "text": "O aplicativo trava ao finalizar a compra. Esse erro impede usar o app.", "rating": 1, "sentiment": "negativo", "theme": "app_bug"}
+]

@@ -1,5 +1,18 @@
 # Etapa 2 — evitar LLM em duplicatas conhecidas
 
+O [benchmark real antes/depois DEV](benchmark-real-deduplicacao-dev.md) foi
+**concluído**, ID `097ec2ffc37c4e4081bb54d9a0c174c0`: 15 envios sequenciais por
+versão; LLM 15 → 5, GETs Airtable 15 → 20, custo estimado US$ 0,000675 → 0,000225,
+média 2396,87 → 1549,93 ms. Reduções de 66,67% em chamadas/custo e 35,34% na média,
+com cinco consultas extras (+33,33%), cinco persistências e dez duplicatas por
+versão, zero falhas. [Relatório real](evidencias/benchmark-dev-real.html).
+
+Qualidade semântica persistida não foi avaliada no benchmark real; JSON válido
+100% não prova equivalência. Os 80% de conjunta em cinco rótulos pertencem à
+avaliação separada de observabilidade. Resultados reais são DEV, sintéticos e
+limitados; não representam produção. **As seções de metodologia/resultados
+abaixo preservam o benchmark offline anterior, de outra carga (120 eventos).**
+
 ## Escolha e alcance
 
 A v4 já sanitiza PII e deduplica por `review_id`, mas consulta o Airtable somente
@@ -109,8 +122,8 @@ O validador rejeita bypass do sanitizador/precheck, gravação sem consulta fina
 alteração do prompt/parser, credenciais no export e fallback para base publicada.
 A suíte original de PII permanece passando.
 
-Isso demonstra **equivalência sintética**, não acurácia de um LLM real. Não houve
-avaliação de modelo remoto, corpus real ou qualidade humana. O input sanitizado,
+Esse benchmark offline demonstra **equivalência sintética**, não acurácia de um LLM real.
+Nesse ensaio offline não houve avaliação de modelo remoto, corpus real ou qualidade humana. O input sanitizado,
 modelo, prompt e parser iguais para reviews novas preservam os critérios de
 classificação; variação estocástica do provedor exige avaliação própria.
 
@@ -165,7 +178,8 @@ publicado; conferir caminho `review-v4-otimizado-dev`. Versões Code/HTTP/IF for
 reaproveitadas da v4. O responsável informou validação no n8n local dos três
 cenários: avaliação nova com classificação, duplicata antes do LLM e falha segura
 do precheck. O agente não repetiu APIs nesta auditoria. Essa validação não
-abrange a candidata observável posterior, que permanece experimental.
+abrange por si só a observabilidade posterior; sua coleta de 11 runs/P1 e o
+benchmark real concluído estão registrados separadamente nos documentos atuais.
 
 Exige `CLASSIFIER_ENV=DEV`, `CLASSIFIER_DEV_BASE_ID`, `CLASSIFIER_DEV_TABLE_ID` e
 `CLASSIFIER_SLACK_DEV_CHANNEL_ID` para alertas negativos. Repassar explicitamente ao
@@ -176,6 +190,7 @@ A tabela DEV precisa do schema completo da classificação; não presumir que a
 tabela mínima de teste de retenção seja compatível.
 
 O usuário informou sucesso anterior do Slack DEV (`sent`, erro nulo, logs e
-métricas). Isso valida o alerta da retenção, não o Router observável experimental nem
-latência real do LLM. O Router otimizado anterior foi validado separadamente
-conforme os três cenários informados acima. Nenhuma API externa, alteração produtiva, deploy ou commit nesta entrega.
+métricas). Essa evidência específica valida a retenção. O P1 do Router, a coleta
+operacional e o benchmark DEV foram validados posteriormente, com escopos próprios.
+O benchmark mede o fluxo até o terminal, não a latência isolada do LLM. Nesta
+consolidação documental não houve novas chamadas, alteração produtiva, deploy ou commit.

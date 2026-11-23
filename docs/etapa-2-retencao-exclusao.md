@@ -9,8 +9,10 @@ distinto dos prazos demonstrativos descritos abaixo e sujeito à verificação r
 
 O usuário informou sucesso operacional DEV em `retention-6` (4 analisados,
 2 elegíveis, 0 excluídos/falhas, 2 páginas e auditoria persistida/finalizada).
-A nova [observabilidade DEV](etapa-2-observabilidade.md) reaproveita esse resumo;
-logs, latência e entrega Slack novos ainda exigem validação manual da importação.
+A [observabilidade DEV](etapa-2-observabilidade.md) reaproveita esse resumo;
+o responsável informou alerta sintético recebido no Slack DEV. Isso não comprova
+pruning ou exclusão real. A [coleta Router e o benchmark real](benchmark-real-deduplicacao-dev.md)
+foram validados separadamente e não medem a retenção.
 
 Implementado na branch `etapa-2`, a partir de `f66cb79`, sem alterações nas versões
 v3/v4 de classificação. Nenhuma exclusão real, chamada a APIs, alteração de

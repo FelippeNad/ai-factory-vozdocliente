@@ -1,6 +1,7 @@
 # Roteiro de demonstração e evidências — Etapa 2
 
-Revisão de preparação: 03/11/2026. Usar branch `etapa-2`, fixtures sintéticas e ambiente local.
+Revisão final: 23/11/2026, atualizando o roteiro de 03/11/2026. Usar branch
+`etapa-2`, fixtures sintéticas e ambiente local.
 Não acessar serviços de produção, revelar tokens, habilitar limpeza ou fazer deploy
 para apresentar esta entrega. A ordem abaixo é uma sugestão, não resultado de uma
 apresentação já realizada.
@@ -9,12 +10,15 @@ apresentação já realizada.
 
 O [README](../../README.md) é o estado atual. O responsável informou validação
 no n8n da sanitização, Router otimizado (nova/duplicata/falha de precheck),
-retenção DRY_RUN com auditoria e alerta sintético recebido no Slack DEV. Os três
-workflows observáveis posteriores continuam experimentais. Railway está
+retenção DRY_RUN com auditoria e alerta sintético recebido no Slack DEV. A coleta
+Router de 11 execuções e o benchmark real antes/depois foram concluídos;
+os agregados abaixo foram conferidos offline, sem repetir chamadas. Railway está
 indisponível após o período gratuito; não repetir testes PROD.
 
 | Evidência | O que se observa / alcance | O que não comprova |
 | --- | --- | --- |
+| [Benchmark real DEV](../evidencias/benchmark-dev-real.html) e [manifesto](../evidencias/etapa-2-evidencias-manifesto.json) | 15 envios por versão, LLM 15 → 5, custo −66,67%, média −35,34%, GETs 15 → 20; sem falhas e estrutura válida | Produção, custo total de infraestrutura ou equivalência semântica; zero snapshots de classificação persistida |
+| [Dashboard real Router](../evidencias/router-observabilidade-dev-real.html) e [rótulos](../evidencias/router-qualidade-dev-rotulos.json) | Coleta separada de 11 terminais; 3 falhas intencionais, P1 validado; qualidade conjunta 80% em cinco exemplos | Erro normal de 27,27%, qualidade ≥90% ou avaliação semântica do benchmark |
 | [Canvas sanitização](../evidencias/etapa2-sanitizacao-pii-n8n.png) | Webhook ligado a `Sanitizar PII` antes de `LLM PROD`; sanitizador com indicação de execução | Input/output da máscara, versão exata, chamada LLM bem-sucedida, ausência de dados pessoais fixados ou deploy ativo |
 | [Canvas retenção](../evidencias/etapa2-retencao-dry-run.png) | Percurso da agenda/motor/guard/gate e stub `Airtable DEV operacao` do tipo Code; retorno ao resumo | Exclusão real, persistência no Airtable, métricas finais ou aprovação jurídica |
 | `retention-6`, informado pelo usuário | Airtable DEV em DRY_RUN: 4 analisados, 2 elegíveis, 0 excluídos/falhas, 2 páginas e auditoria confirmada | Importação da nova observabilidade, entrega Slack ou desempenho medido nesta implementação |
@@ -35,7 +39,8 @@ as quatro validações manuais indispensáveis. Não confundir console do navega
 em execução manual com stdout do servidor em execução não manual.
 
 1. **Escopo e integridade.** Mostrar `git status --short --branch` e
-   `git log -1 --oneline`; explicar HEAD `27652b0` e alterações locais sem commit.
+   `git log -1 --oneline`; distinguir o HEAD atual da auditoria histórica `27652b0`
+   e das alterações locais sem commit.
    Não abrir `.env` real, Raw Editor, cofres ou console com variáveis. Mostrar o
    inventário da auditoria: v3/v4 preservados; retenção corrigida e candidatos DEV
    pertencem às alterações da Etapa 2 anteriores a esta revisão documental.
@@ -61,7 +66,10 @@ em execução manual com stdout do servidor em execução não manual.
    sete dias/1000 execuções, contrastando com 30 dias demonstrativos das reviews e
    máximo de 90 dias de logs no briefing. Explicar que não foi aplicada a produção
    e que pruning/lixeira/backups têm limitações; não apagar volume para “demonstrar”.
-8. **Pendências e revisão.** Apresentar [checklist](checklist-etapa-2.md), responsáveis
+8. **Resultados reais existentes.** Abrir os dois relatórios HTML públicos e executar
+   `python scripts/export_etapa2_evidence.py --check`. Explicar os denominadores,
+   consultas adicionais e qualidade não avaliada no benchmark; não executar novo lote.
+9. **Pendências e revisão.** Apresentar [checklist](checklist-etapa-2.md), responsáveis
    a nomear e critérios para integração DEV, segurança e jurídico. Registrar dúvidas
    do professor e validações futuras, sem declarar nível ou conformidade integral.
 
@@ -76,7 +84,8 @@ node tests/test_pii_sanitization.cjs
 node tests/test_retention.cjs
 node tests/test_observability.cjs
 node scripts/simular_falha_observabilidade.cjs
-python scripts/simular_rotacao_credenciais.py --output docs/security/evidencias/rotacao-simulada.json
+python scripts/export_etapa2_evidence.py --check
+python scripts/validate_doc_links.py
 python scripts/simular_rotacao_credenciais.py --verify docs/security/evidencias/rotacao-simulada.json
 git diff --check
 ```
@@ -88,8 +97,8 @@ Isso é caminho local, não dependência a hardcodear no CI.
 
 Os resultados atuais de suítes, exports, Compose, Gitleaks e revisão visual
 estão na [auditoria da entrega](../entrega-etapa-2.md), evitando manter contagens
-antigas como se descrevessem a revisão atual. O CI remoto e o engine n8n não
-foram executados nesta auditoria. Capturas `06`, `08`, `09` e `11` receberam
+antigas como se descrevessem a revisão atual. O CI remoto não foi executado;
+nenhum novo processamento n8n foi disparado na consolidação documental. Capturas `06`, `08`, `09` e `11` receberam
 ocultação visual; seus originais já estavam no histórico público. Não publicar
 antes da decisão de privacidade e conferência de autodeploy.
 
