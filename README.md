@@ -1,4 +1,35 @@
-# VozDoCliente — AI Review Router
+# VozDoCliente CX — AI Review Router
+
+## AI Factory (PUCPR) — Entrega da Etapa 3
+
+**Versão 1.0 da demonstração · 23/11/2026 · branch `etapa-3`**
+
+**Aplicação web:** https://ai-factory-vozdocliente-production.up.railway.app  
+**Health check:** https://ai-factory-vozdocliente-production.up.railway.app/health  
+**Código e deploy da aplicação:** [`site/`](site/) · [`site/README.md`](site/README.md) · [`site/.env.example`](site/.env.example)  
+**Documentos da Etapa 3:** [`docs/etapa-3/README.md`](docs/etapa-3/README.md) · [`docs/etapa-3/one-pager-executivo.md`](docs/etapa-3/one-pager-executivo.md) · [`docs/etapa-3/validacao-evidencias.md`](docs/etapa-3/validacao-evidencias.md)
+
+> A demonstração publicada em 23/11/2026 **substitui as indicações históricas de indisponibilidade do Railway** contidas nos registros da Etapa 2. Os resultados e descrições das etapas anteriores devem continuar no README para preservar a rastreabilidade. A aplicação de demonstração é isolada no ambiente **DEV**: não é piloto com clientes reais nem comprova conformidade LGPD completa.
+
+## Demonstração atual
+
+O site Node.js 22.16.0 (Docker/Railway) permite entrar com senha, consultar indicadores de avaliações fictícias do Airtable DEV, submeter uma avaliação ao webhook **n8n DEV autenticado com `X-Demo-Key`**, acompanhar o resultado gravado e observar o alerta de avaliações negativas no Slack DEV. O site mostra metadados; o fluxo sanitiza texto antes do LLM. A autenticação por senha única serve à demonstração acadêmica, não a uma operação corporativa. Fornecer senha ao avaliador em canal privado; nunca em commits ou vídeo.
+
+**Fluxo:** Navegador → Site Railway → n8n DEV (sanitização, precheck de duplicata, OpenAI, validação) → Airtable DEV → Slack DEV para negativas. O site consulta o Airtable para confirmar o processamento; o ACK do webhook não equivale a uma classificação concluída.
+
+**Testes observados em 23/11:** classificação positiva confirmada (`ETAPA3-DEMO-1795471550245-E1F38E`, Positivo/Produto/5); avaliação negativa encaminhada ao Slack DEV; reenvio duplicado (`ETAPA3-DUP-d96c520aecc2`) encerrado antes do LLM; webhook sem autenticação devolveu HTTP 403 sem gerar execução no n8n. Unicidade no Airtable e retenção/uptime contínuo exigem verificações próprias.
+
+**Benchmark DEV da Etapa 2 (não produção):** 15 requisições sequenciais por versão, com 10 duplicatas; chamadas LLM 15→5 (−66,67%), latência média 2.396,87→1.549,93 ms (−35,34%), custo LLM estimado US$ 0,000675→0,000225 (−66,67%), consultas Airtable 15→20 (+33,33%). Acurácia não medida nesse benchmark; avaliação separada de cinco exemplos obteve 80% de acurácia conjunta. Não projetar ROI nem faturamento a partir desses valores.
+
+**Como executar:** consultar [`site/README.md`](site/README.md). Node.js 22, sem dependências npm, configuração por `site/.env.example`, `node server.js` e teste offline `node --test tests/smoke.test.js`. Railway: serviço web separado, branch `etapa-3`, root directory `/site`, porta de destino igual ao `PORT` (publicado com `8080`), webhook DEV **Production URL** (`/webhook/review-v4-otimizado-dev`), com `N8N_DEV_WEBHOOK_AUTH_HEADER=X-Demo-Key` e segredo só nas variáveis privadas.
+
+**Diagnóstico rápido:** 404 em `webhook-test` exige “Execute workflow”; 404 em `webhook` indica workflow DEV não publicado/URL incorreta; 403 sem chave é bloqueio esperado; 403 com chave exige revisar Header Auth; avaliação recebida mas não confirmada exige checar Executions e Airtable; erro 502 exige conferir logs, `PORT`, target port e variáveis do site. `GET /health` não mede APIs externas nem uptime de 24h. Deduplicação sob concorrência não é atômica, PII sanitizada por padrões tem limites e o Airtable DEV guarda texto original.
+
+---
+
+## Histórico técnico — Etapas 1 e 2
+
+> O conteúdo a seguir registra o desenvolvimento e os resultados anteriores. Referências a indisponibilidade, publicação pendente ou ausência de deploy pertencem ao contexto histórico e não substituem o estado da demonstração da Etapa 3, descrito acima.
 
 Projeto da disciplina AI Factory da PUCPR: triagem de avaliações por sentimento e
 tema, com n8n, LLM, Airtable e Slack. **Etapa 2 consolidada localmente em
